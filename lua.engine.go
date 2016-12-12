@@ -40,7 +40,7 @@ func NewLuaEngine(script string, binder *Binder) (engine *LuaEngine, err error) 
 func (e *LuaEngine) Call(context *Context) (result []string, params map[string]string, err error) {
 	log := logger.GetSession(context.LoggerName, context.Session)
 	defer luaRecover(log)
-	log.Info("----开始执行脚本:%s", e.script)
+	log.Infof("----开始执行脚本:%s", e.script)
 
 	e.state.SetGlobal("__session__", lua.LString(context.Session))
 	e.state.SetGlobal("__logger_name__", lua.LString(context.LoggerName))
@@ -60,7 +60,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		}
 	}
 	params = getResponse(e.state)
-	log.Info("----完成执行脚本:%s", e.script)
+	log.Infof("----完成执行脚本:%s", e.script)
 	return
 }
 
