@@ -114,13 +114,17 @@ func TestNewLuaEngine(t *testing.T) {
 // TestCall 测试使用lua引擎执行lua脚本
 func TestCall(t *testing.T) {
 	packages := []string{""}
-	binderTypes := []TypeBinder{TypeBinder{Name: "http",
-		NewFunc: map[string]lua.LGFunction{
-			"new": FuncTest,
+	binderTypes := []TypeBinder{
+		TypeBinder{
+			Name: "binder",
+			NewFunc: map[string]lua.LGFunction{
+				"new": FuncTest,
+			},
+			Methods: map[string]lua.LGFunction{
+				"method": MethodsTest,
+			},
 		},
-		Methods: map[string]lua.LGFunction{
-			"method": MethodsTest,
-		}}}
+	}
 	globalFunc := map[string]lua.LGFunction{
 		"global": GlobalFuncTest,
 	}
