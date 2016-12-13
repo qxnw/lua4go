@@ -109,11 +109,18 @@ func TestNewLuaEngine(t *testing.T) {
 	if err != nil {
 		t.Errorf("test fail : %v", err)
 	}
+
+	// 传入的文件路径不对
+	binder = &Binder{Packages: packages, Types: binderTypes, GlobalFunc: globalFunc}
+	_, err = NewLuaEngine("/home/err.lua", binder)
+	if err == nil {
+		t.Errorf("test fail")
+	}
 }
 
 // TestCall 测试使用lua引擎执行lua脚本
 func TestCall(t *testing.T) {
-	packages := []string{""}
+	packages := []string{"/home/champly/xlib"}
 	binderTypes := []TypeBinder{
 		TypeBinder{
 			Name: "binder",
@@ -136,7 +143,7 @@ func TestCall(t *testing.T) {
 	}
 
 	id := utility.GetGUID()
-	context := &Context{Session: id[0:8], LoggerName: "luaEngine"}
+	context := &Context{Session: id[0:8], LoggerName: "luaEngine", Input: `{"id":0}`}
 
 	// 正常加载
 	filePath := file.GetAbs("./lua_test_script/test.lua")
@@ -158,14 +165,106 @@ func TestCall(t *testing.T) {
 	filePath = file.GetAbs("./lua_test_script/without_main_test.lua")
 	binder = &Binder{Packages: packages, Types: binderTypes, GlobalFunc: globalFunc, Modeules: modules}
 	e, err = NewLuaEngine(filePath, binder)
-	// if err != nil {
-	// 	t.Errorf("test fail : %v", err)
-	// }
-
-	result, _, err = e.Call(context)
-	// fmt.Println(err)
 	if err == nil {
 		t.Errorf("test fail")
+	}
+
+	result, _, err = e.Call(context)
+	if err == nil {
+		t.Errorf("test fail")
+	}
+
+	// 读取返回值
+	filePath = file.GetAbs("./lua_test_script/response.lua")
+	binder = &Binder{Packages: packages, Types: binderTypes, GlobalFunc: globalFunc, Modeules: modules}
+	e, err = NewLuaEngine(filePath, binder)
+	if err != nil {
+		t.Errorf("test fail : %v", err)
+	}
+
+	// 传入string类型
+	context = &Context{Session: id[0:8], LoggerName: "luaEngine", Input: `123`}
+	result, params, err := e.Call(context)
+	if err != nil {
+		t.Errorf("test fail %v", err)
+		return
+	}
+	if params["Charset"] != "utf-8" {
+		t.Errorf("test fail actual : %s\t except : %s", params["Charset"], "utf-8")
+	}
+	if result[0] != "123" {
+		t.Errorf("test fail actual : %s\t except : %s", result[0], "123")
+	}
+
+	// 传入json
+	context = &Context{Session: id[0:8], LoggerName: "luaEngine", Input: `{"id":123}`}
+	result, params, err = e.Call(context)
+	if err != nil {
+		t.Errorf("test fail %v", err)
+		return
+	}
+	if params["Charset"] != "utf-8" {
+		t.Errorf("test fail actual : %s\t except : %s", params["Charset"], "utf-8")
+	}
+
+	// 返回值第一个参数是302
+	filePath = file.GetAbs("./lua_test_script/return_302.lua")
+	binder = &Binder{Packages: packages, Types: binderTypes, GlobalFunc: globalFunc, Modeules: modules}
+	e, err = NewLuaEngine(filePath, binder)
+	if err != nil {
+		t.Errorf("test fail : %v", err)
+	}
+	result, _, err = e.Call(context)
+	if err != nil {
+		t.Errorf("test fail : %v", err)
+	}
+	if len(result) != 1 {
+		t.Errorf("test fail : %v", result)
+	}
+
+	// 返回值第一个参数是nil
+	filePath = file.GetAbs("./lua_test_script/return_nil.lua")
+	binder = &Binder{Packages: packages, Types: binderTypes, GlobalFunc: globalFunc, Modeules: modules}
+	e, err = NewLuaEngine(filePath, binder)
+	if err != nil {
+		t.Errorf("test fail : %v", err)
+	}
+	result, params, err = e.Call(context)
+	if err != nil {
+		t.Errorf("test fail : %v", err)
+	}
+	if len(result) != 0 {
+		t.Errorf("test fail : %v", result)
+	}
+
+	// 返回值第二个参数是nil
+	filePath = file.GetAbs("./lua_test_script/return_other_nil.lua")
+	binder = &Binder{Packages: packages, Types: binderTypes, GlobalFunc: globalFunc, Modeules: modules}
+	e, err = NewLuaEngine(filePath, binder)
+	if err != nil {
+		t.Errorf("test fail : %v", err)
+	}
+	result, _, err = e.Call(context)
+	if err != nil {
+		t.Errorf("test fail : %v", err)
+	}
+	if len(result) != 1 {
+		t.Errorf("test fail : %v", result)
+	}
+
+	// 返回值有两个
+	filePath = file.GetAbs("./lua_test_script/return_two_params.lua")
+	binder = &Binder{Packages: packages, Types: binderTypes, GlobalFunc: globalFunc, Modeules: modules}
+	e, err = NewLuaEngine(filePath, binder)
+	if err != nil {
+		t.Errorf("test fail : %v", err)
+	}
+	result, params, err = e.Call(context)
+	if err != nil {
+		t.Errorf("test fail : %v", err)
+	}
+	if len(result) != 2 {
+		t.Errorf("test fail : %v", result)
 	}
 }
 
