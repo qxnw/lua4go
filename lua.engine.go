@@ -11,14 +11,14 @@ import (
 
 //LuaEngine 脚本引擎
 type LuaEngine struct {
-	Binder *Binder
+	binder *Binder
 	script string
 	state  *lua.LState
 }
 
 //NewLuaEngine 初始化lua引擎
 func NewLuaEngine(script string, binder *Binder) (engine *LuaEngine, err error) {
-	engine = &LuaEngine{script: script, Binder: binder}
+	engine = &LuaEngine{script: script, binder: binder}
 	engine.state = lua.NewState()
 	if err = binder.Bind(engine.state); err != nil {
 		return
