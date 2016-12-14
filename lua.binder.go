@@ -15,9 +15,18 @@ type TypeBinder struct {
 //Binder 绑定对象
 type Binder struct {
 	Packages   []string
-	Types      []TypeBinder
+	Types      []*TypeBinder
 	GlobalFunc map[string]lua.LGFunction
 	Modeules   map[string]map[string]lua.LGFunction
+}
+
+//NewDefault 构建默认binder
+func NewDefault() *Binder {
+	binder := &Binder{}
+	binder.GlobalFunc = getGlobal()
+	binder.Modeules = getModules()
+	binder.Types = getTypes()
+	return binder
 }
 
 //Bind 将全局函数，类型，模块等绑定到引擎

@@ -33,7 +33,7 @@ func NewLuaPool(binder *Binder, minSize int, maxSize int) *LuaPool {
 //Call 选取最新使用的引擎并根据输入参数执行
 func (p *LuaPool) Call(script string, context *Context) (result []string, params map[string]string, err error) {
 	if p.isClose {
-		err = errors.New("脚本引擎已经关闭")
+		err = errors.New("脚本引擎已关闭")
 		return
 	}
 	atomic.AddInt32(&p.using, 1)
@@ -92,6 +92,7 @@ func (p *LuaPool) Close() {
 						pl.(pool.IPool).Release()
 						return true
 					})
+					tk.Stop()
 					break START
 				}
 			}

@@ -30,6 +30,7 @@ func NewLuaVM(binder *Binder, minSize int, maxSize int) *LuaVM {
 	vm.cache = cmap.New()
 	vm.scripts = cmap.New()
 	vm.cache.SetIfAbsentCb(string(vm.version+1), vm.createNewPool)
+	atomic.AddInt32(&vm.version, 1)
 	return vm
 }
 
@@ -59,6 +60,7 @@ func (vm *LuaVM) Reload() {
 	oldPool, _ := vm.cache.Get(oldVersion)
 	ok, _, _ := vm.cache.SetIfAbsentCb(string(vm.version+1), vm.createNewPool)
 	if ok {
+		atomic.AddInt32(&vm.version, 1)
 		oldPool.(*LuaPool).Close()
 		vm.cache.Remove(oldVersion)
 	}
@@ -87,7 +89,6 @@ func (vm *LuaVM) Close() {
 }
 
 func (vm *LuaVM) createNewPool(args ...interface{}) (p interface{}, er error) {
-	atomic.AddInt32(&vm.version, 1)
 	pl := NewLuaPool(vm.binder, vm.minSize, vm.maxSize)
 	vm.scripts.IterCb(func(k string, v interface{}) bool {
 		pl.PreLoad(k)

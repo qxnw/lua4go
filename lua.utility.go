@@ -41,19 +41,19 @@ package.path = string.format('%s;%s/?.lua;%s/?.luac;%s/?.dll',
 	return
 }
 
-func json2LuaTable(L *lua.LState, input string, log logger.ILogger) (inputValue lua.LValue) {
+func json2LuaTable(L *lua.LState, input string, log logger.ILogger) (inputValue lua.LValue, err error) {
 	defer luaRecover(log)
 	data := make(map[string]interface{})
-	err := json.Unmarshal([]byte(input), &data)
+	err = json.Unmarshal([]byte(input), &data)
 	if err != nil {
-		inputValue = lua.LString(input)
 		return
 	}
 	tb := L.NewTable()
 	for k, v := range data {
 		tb.RawSetString(k, json2LuaTableValue(L, v, log))
 	}
-	return tb
+	inputValue = tb
+	return
 }
 func json2LuaTableValue(L *lua.LState, value interface{}, log logger.ILogger) (inputValue lua.LValue) {
 	val := reflect.ValueOf(value)
@@ -77,6 +77,18 @@ func json2LuaTableValue(L *lua.LState, value interface{}, log logger.ILogger) (i
 	}
 	return
 }
+func getValue(L *lua.LState, obj lua.LValue, key string) (lv lua.LValue) {
+	if obj == nil {
+		lv = L.GetGlobal(key)
+		return
+	}
+	lv = L.GetField(obj, key)
+	if lv == lua.LNil {
+		lv = L.GetGlobal(key)
+		return
+	}
+	return lv
+}
 
 func getResponse(L *lua.LState) (r map[string]string) {
 	fields := map[string]string{
@@ -89,17 +101,8 @@ func getResponse(L *lua.LState) (r map[string]string) {
 	}
 	r = make(map[string]string)
 	response := L.GetGlobal("response")
-	if response != lua.LNil {
-		for i, v := range fields {
-			fied := L.GetField(response, i)
-			if fied == lua.LNil {
-				continue
-			}
-			r[v] = fied.String()
-		}
-	}
 	for i, v := range fields {
-		fied := L.GetGlobal(i)
+		fied := getValue(L, response, i)
 		if fied == lua.LNil {
 			continue
 		}
@@ -107,34 +110,34 @@ func getResponse(L *lua.LState) (r map[string]string) {
 	}
 	return
 }
+func luaTable2Json(tb *lua.LTable, log logger.ILogger) (s string, err error) {
+	data, err := luaTable2Map(tb, log)
+	if err != nil {
+		return
+	}
+	buffer, err := json.Marshal(&data)
+	if err != nil {
+		return
+	}
+	s = string(buffer)
+	return
+}
 
-func luaTable2Json(L *lua.LState, inputValue lua.LValue, log logger.ILogger) (json string) {
+func luaTable2Map(tb *lua.LTable, log logger.ILogger) (data map[string]interface{}, err error) {
 	defer luaRecover(log)
-	L.Pop(L.GetTop())
-	xjson := L.GetGlobal("xjson")
-	if xjson.String() == "nil" {
-		fmt.Println("not find xjson")
-		json = inputValue.String()
-		return
-	}
-	encode := L.GetField(xjson, "encode")
-	if encode == nil {
-		fmt.Println("not find xjson.encode")
-		json = inputValue.String()
-		return
-	}
-	block := lua.P{
-		Fn:      encode,
-		NRet:    1,
-		Protect: true,
-	}
-	er := L.CallByParam(block, inputValue)
-	if er != nil {
-		fmt.Println(er)
-		json = inputValue.String()
-	} else {
-		json = L.Get(-1).String()
-	}
-	L.Pop(L.GetTop())
+	data = make(map[string]interface{})
+	tb.ForEach(func(key lua.LValue, value lua.LValue) {
+		if value == nil {
+			return
+		}
+		if value.Type().String() == "table" {
+			data[key.String()], err = luaTable2Map(value.(*lua.LTable), log)
+			if err != nil {
+				return
+			}
+		} else {
+			data[key.String()] = value.String()
+		}
+	})
 	return
 }

@@ -1,8 +1,9 @@
 package lua4go
 
 import (
-	"errors"
 	"strings"
+
+	"fmt"
 
 	"github.com/qxnw/lib4go/logger"
 	"github.com/qxnw/lua4go/core"
@@ -25,12 +26,13 @@ func NewLuaEngine(script string, binder *Binder) (engine *LuaEngine, err error) 
 	}
 	err = engine.state.DoFile(script)
 	if err != nil {
+		err = fmt.Errorf("脚本语法错误:%s,%v", script, err)
 		engine.state.Close()
 		return
 	}
 	main := engine.state.GetGlobal("main")
 	if main == lua.LNil {
-		err = errors.New("未找到main函数")
+		err = fmt.Errorf("未找到main函数:%s", script)
 		return
 	}
 	return
@@ -38,29 +40,34 @@ func NewLuaEngine(script string, binder *Binder) (engine *LuaEngine, err error) 
 
 //Call 初始化脚本参数，并执行脚本
 func (e *LuaEngine) Call(context *Context) (result []string, params map[string]string, err error) {
-	log := logger.GetSession(context.LoggerName, context.Session)
-	defer luaRecover(log)
-	log.Infof("----开始执行脚本:%s", e.script)
-
-	e.state.SetGlobal("__session__", lua.LString(context.Session))
-	e.state.SetGlobal("__logger_name__", lua.LString(context.LoggerName))
-	e.state.SetGlobal("__http_context__", core.New(e.state, context.HTTPContext))
-
-	inputData := json2LuaTable(e.state, context.Input, log)
-	values, err := callMain(e.state, inputData, lua.LString(context.Body), log)
+	defer luaRecover(context.logger)
+	context.logger.Infof("----开始执行脚本:%s", e.script)
+	e.state.SetGlobal("__context__", core.New(e.state, context))
+	inputData, err := json2LuaTable(e.state, context.input, context.logger)
 	if err != nil {
+		err = fmt.Errorf("脚本输入参数转换失败:%v", err)
+		return
+	}
+	values, err := callMain(e.state, inputData, context.logger)
+	if err != nil {
+		err = fmt.Errorf("脚本执行异常:%v", err)
 		return
 	}
 	result = []string{}
 	for _, lv := range values {
 		if strings.EqualFold(lv.Type().String(), "table") {
-			result = append(result, luaTable2Json(e.state, lv, log))
+			data, err := luaTable2Json(lv.(*lua.LTable), context.logger)
+			if err != nil {
+				err = fmt.Errorf("脚本返回结果解析失败:%v", err)
+				return nil, nil, err
+			}
+			result = append(result, data)
 		} else {
 			result = append(result, lv.String())
 		}
 	}
 	params = getResponse(e.state)
-	log.Infof("----完成执行脚本:%s", e.script)
+	context.logger.Infof("----完成执行脚本:%s", e.script)
 	return
 }
 
@@ -69,28 +76,22 @@ func (e *LuaEngine) Close() {
 	e.state.Close()
 }
 
-func callMain(ls *lua.LState, inputValue lua.LValue, others lua.LValue, log logger.ILogger) (rt []lua.LValue, er error) {
+func callMain(ls *lua.LState, inputValue lua.LValue, log logger.ILogger) (rt []lua.LValue, er error) {
 	defer luaRecover(log)
 	ls.Pop(ls.GetTop())
-	er = callMainFunc(ls, inputValue, others)
+	er = callMainFunc(ls, inputValue)
 	if er != nil {
 		return
 	}
 	defer ls.Pop(ls.GetTop())
-	rt = make([]lua.LValue, 0, ls.GetTop())
-	value1 := ls.Get(1)
-	if value1.String() == "nil" {
+	count := ls.GetTop()
+	rt = make([]lua.LValue, 0, count)
+	if count == 0 {
 		return
 	}
-	rt = append(rt, value1)
-	if value1.String() != "302" {
-		return
+	for i := 0; i < count; i++ {
+		rt = append(rt, ls.Get(i+1))
 	}
-	value2 := ls.Get(2)
-	if value2.String() == "nil" {
-		return
-	}
-	rt = append(rt, value2)
 	return
 }
 func callMainFunc(ls *lua.LState, args ...lua.LValue) (err error) {
@@ -99,6 +100,5 @@ func callMainFunc(ls *lua.LState, args ...lua.LValue) (err error) {
 		NRet:    2,
 		Protect: true,
 	}
-	err = ls.CallByParam(block, args...)
-	return err
+	return ls.CallByParam(block, args...)
 }
