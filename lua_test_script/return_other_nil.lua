@@ -1,3 +1,3 @@
 function main()
-    return 123, nil
+    return {id=123, result=nil}
 end
