@@ -13,7 +13,7 @@ import (
 //LuaVM lua虚拟机
 type LuaVM struct {
 	version int32
-	binder  *Binder
+	binder  IBinder
 	watcher *file.DirWatcher
 	cache   cmap.ConcurrentMap
 	scripts cmap.ConcurrentMap
@@ -24,7 +24,7 @@ type LuaVM struct {
 }
 
 //NewLuaVM   构建LUA对象池
-func NewLuaVM(binder *Binder, minSize int, maxSize int) *LuaVM {
+func NewLuaVM(binder IBinder, minSize int, maxSize int) *LuaVM {
 	vm := &LuaVM{binder: binder, version: 100, isClose: false, minSize: minSize, maxSize: maxSize}
 	vm.watcher = file.NewDirWatcher(vm.Reload)
 	vm.cache = cmap.New()

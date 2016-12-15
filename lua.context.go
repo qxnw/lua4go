@@ -7,17 +7,17 @@ import (
 
 //Context 脚本执行上下文
 type Context struct {
-	logger      logger.ILogger
-	input       string
-	httpContext *http.Context
+	Logger      logger.ILogger
+	Input       string
+	HttpContext *http.Context
 }
 
 //NewContext 初始化Context
 func NewContext(logger logger.ILogger, input string) *Context {
-	return &Context{logger: logger, input: input}
+	return &Context{Logger: logger, Input: input}
 }
 
 //NewContextHTTP  初始化Context
 func NewContextHTTP(logger logger.ILogger, input string, httpContext *http.Context) *Context {
-	return &Context{logger: logger, input: input, httpContext: httpContext}
+	return &Context{Logger: logger, Input: input, HttpContext: httpContext}
 }

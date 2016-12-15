@@ -15,7 +15,7 @@ var IdleTimeout = time.Second * 30
 
 //LuaPool lua引擎池
 type LuaPool struct {
-	binder  *Binder
+	binder  IBinder
 	minSize int
 	maxSize int
 	using   int32
@@ -24,7 +24,7 @@ type LuaPool struct {
 }
 
 //NewLuaPool 构建LUA引擎池
-func NewLuaPool(binder *Binder, minSize int, maxSize int) *LuaPool {
+func NewLuaPool(binder IBinder, minSize int, maxSize int) *LuaPool {
 	pool := &LuaPool{binder: binder, minSize: minSize, maxSize: maxSize, isClose: false}
 	pool.cache = cmap.New()
 	return pool

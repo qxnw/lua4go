@@ -2,10 +2,8 @@ package lua4go
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"runtime/debug"
-	"strings"
 
 	"github.com/qxnw/lib4go/logger"
 	"github.com/qxnw/lua4go/core"
@@ -16,29 +14,6 @@ func luaRecover(log logger.ILogger) {
 	if r := recover(); r != nil {
 		log.Fatal(r, string(debug.Stack()))
 	}
-}
-func addPackages(l *lua.LState, paths ...string) (err error) {
-	if paths == nil || len(paths) == 0 {
-		return
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("addPackages:", r)
-		}
-	}()
-	for _, v := range paths {
-		pk := `local p = [[` + strings.Replace(v, "//", "/", -1) + `]]
-local m_package_path = package.path
-package.path = string.format('%s;%s/?.lua;%s/?.luac;%s/?.dll',
-	m_package_path, p,p,p)`
-
-		err = l.DoString(pk)
-		if err != nil {
-			return err
-		}
-	}
-
-	return
 }
 
 func json2LuaTable(L *lua.LState, input string, log logger.ILogger) (inputValue lua.LValue, err error) {

@@ -10,15 +10,20 @@ import (
 	"github.com/yuin/gopher-lua"
 )
 
+//IBinder 基础库绑定
+type IBinder interface {
+	Bind(*lua.LState) error
+}
+
 //LuaEngine 脚本引擎
 type LuaEngine struct {
-	binder *Binder
+	binder IBinder
 	script string
 	state  *lua.LState
 }
 
 //NewLuaEngine 初始化lua引擎
-func NewLuaEngine(script string, binder *Binder) (engine *LuaEngine, err error) {
+func NewLuaEngine(script string, binder IBinder) (engine *LuaEngine, err error) {
 	engine = &LuaEngine{script: script, binder: binder}
 	engine.state = lua.NewState()
 	if err = binder.Bind(engine.state); err != nil {
@@ -40,15 +45,15 @@ func NewLuaEngine(script string, binder *Binder) (engine *LuaEngine, err error) 
 
 //Call 初始化脚本参数，并执行脚本
 func (e *LuaEngine) Call(context *Context) (result []string, params map[string]string, err error) {
-	defer luaRecover(context.logger)
-	context.logger.Infof("----开始执行脚本:%s", e.script)
+	defer luaRecover(context.Logger)
+	context.Logger.Infof("----开始执行脚本:%s", e.script)
 	e.state.SetGlobal("__context__", core.New(e.state, context))
-	inputData, err := json2LuaTable(e.state, context.input, context.logger)
+	inputData, err := json2LuaTable(e.state, context.Input, context.Logger)
 	if err != nil {
 		err = fmt.Errorf("脚本输入参数转换失败:%v", err)
 		return
 	}
-	values, err := callMain(e.state, inputData, context.logger)
+	values, err := callMain(e.state, inputData, context.Logger)
 	if err != nil {
 		err = fmt.Errorf("脚本执行异常:%v", err)
 		return
@@ -56,7 +61,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 	result = []string{}
 	for _, lv := range values {
 		if strings.EqualFold(lv.Type().String(), "table") {
-			data, err := luaTable2Json(lv.(*lua.LTable), context.logger)
+			data, err := luaTable2Json(lv.(*lua.LTable), context.Logger)
 			if err != nil {
 				err = fmt.Errorf("脚本返回结果解析失败:%v", err)
 				return nil, nil, err
@@ -67,7 +72,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		}
 	}
 	params = getResponse(e.state)
-	context.logger.Infof("----完成执行脚本:%s", e.script)
+	context.Logger.Infof("----完成执行脚本:%s", e.script)
 	return
 }
 
