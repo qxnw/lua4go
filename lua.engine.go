@@ -1,11 +1,10 @@
 package lua4go
 
 import (
-	"strings"
-
 	"fmt"
 
-	"github.com/qxnw/lib4go/logger"
+	"time"
+
 	"github.com/qxnw/lua4go/core"
 	"github.com/yuin/gopher-lua"
 )
@@ -31,7 +30,7 @@ func NewLuaEngine(script string, binder IBinder) (engine *LuaEngine, err error) 
 	}
 	err = engine.state.DoFile(script)
 	if err != nil {
-		err = fmt.Errorf("脚本语法错误:%s,%v", script, err)
+		err = fmt.Errorf("脚本语法错误:%s,%+v", script, err)
 		engine.state.Close()
 		return
 	}
@@ -46,33 +45,40 @@ func NewLuaEngine(script string, binder IBinder) (engine *LuaEngine, err error) 
 //Call 初始化脚本参数，并执行脚本
 func (e *LuaEngine) Call(context *Context) (result []string, params map[string]string, err error) {
 	defer luaRecover(context.Logger)
-	context.Logger.Infof("----开始执行脚本:%s", e.script)
+	startTime := time.Now()
+
 	e.state.SetGlobal("__context__", core.New(e.state, context))
 	inputData, err := json2LuaTable(e.state, context.Input, context.Logger)
 	if err != nil {
 		err = fmt.Errorf("脚本输入参数转换失败:%v", err)
 		return
 	}
+	context.Logger.Infof("----开始执行脚本:%s", e.script)
 	values, err := callMain(e.state, inputData, context.Logger)
 	if err != nil {
-		err = fmt.Errorf("脚本执行异常:%v", err)
+		err = fmt.Errorf("脚本执行异常:%+v", err)
 		return
 	}
 	result = []string{}
 	for _, lv := range values {
-		if strings.EqualFold(lv.Type().String(), "table") {
+		switch lv.(type) {
+		case lua.LString:
+			result = append(result, lv.String())
+		case lua.LNumber:
+			result = append(result, lv.String())
+		case *lua.LTable:
 			data, err := luaTable2Json(lv.(*lua.LTable), context.Logger)
 			if err != nil {
 				err = fmt.Errorf("脚本返回结果解析失败:%v", err)
 				return nil, nil, err
 			}
 			result = append(result, data)
-		} else {
-			result = append(result, lv.String())
+		default:
+			err = fmt.Errorf("脚本返回值错误，只支持字符串和table:%s", e.script)
 		}
 	}
 	params = getResponse(e.state)
-	context.Logger.Infof("----完成执行脚本:%s", e.script)
+	context.Logger.Infof("----完成执行脚本:%s,%+v", e.script, time.Since(startTime))
 	return
 }
 
@@ -81,7 +87,7 @@ func (e *LuaEngine) Close() {
 	e.state.Close()
 }
 
-func callMain(ls *lua.LState, inputValue lua.LValue, log logger.ILogger) (rt []lua.LValue, er error) {
+func callMain(ls *lua.LState, inputValue lua.LValue, log Logger) (rt []lua.LValue, er error) {
 	defer luaRecover(log)
 	ls.Pop(ls.GetTop())
 	er = callMainFunc(ls, inputValue)
@@ -94,15 +100,14 @@ func callMain(ls *lua.LState, inputValue lua.LValue, log logger.ILogger) (rt []l
 	if count == 0 {
 		return
 	}
-	for i := 0; i < count; i++ {
-		rt = append(rt, ls.Get(i+1))
-	}
+	value1 := ls.Get(1)
+	rt = append(rt, value1)
 	return
 }
 func callMainFunc(ls *lua.LState, args ...lua.LValue) (err error) {
 	block := lua.P{
 		Fn:      ls.GetGlobal("main"),
-		NRet:    2,
+		NRet:    1,
 		Protect: true,
 	}
 	return ls.CallByParam(block, args...)

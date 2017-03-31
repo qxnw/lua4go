@@ -5,7 +5,6 @@ import (
 
 	"github.com/arsgo/lib4go/script"
 	"github.com/qxnw/lib4go/logger"
-	"github.com/qxnw/lib4go/server/http"
 	"github.com/qxnw/lua4go"
 	"github.com/yuin/gopher-lua"
 )
@@ -23,7 +22,7 @@ func globalGetLogger(ls *lua.LState) (lg logger.ILogger, err error) {
 	}
 	return context.Logger, nil
 }
-func moduleHTTPContext(ls *lua.LState) (*http.Context, error) {
+func moduleHTTPContext(ls *lua.LState) (*lua4go.HttpContext, error) {
 	context, err := getContext(ls)
 	if err != nil {
 		return nil, err

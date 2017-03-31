@@ -6,18 +6,24 @@ import (
 
 	"errors"
 
+	"time"
+
 	"github.com/qxnw/lib4go/concurrent/cmap"
 	"github.com/qxnw/lib4go/file"
 )
+
+type fileWatcher interface {
+	Append(string) error
+}
 
 //LuaVM lua虚拟机
 type LuaVM struct {
 	version int32
 	binder  IBinder
-	watcher *file.DirWatcher
+	watcher fileWatcher
 	cache   cmap.ConcurrentMap
 	scripts cmap.ConcurrentMap
-	isClose bool
+	done    bool
 	minSize int
 	maxSize int
 	lk      sync.Mutex
@@ -25,8 +31,8 @@ type LuaVM struct {
 
 //NewLuaVM   构建LUA对象池
 func NewLuaVM(binder IBinder, minSize int, maxSize int) *LuaVM {
-	vm := &LuaVM{binder: binder, version: 100, isClose: false, minSize: minSize, maxSize: maxSize}
-	vm.watcher = file.NewDirWatcher(vm.Reload)
+	vm := &LuaVM{binder: binder, version: 99, minSize: minSize, maxSize: maxSize}
+	vm.watcher = file.NewDirWatcher(vm.Reload, time.Second*5)
 	vm.cache = cmap.New()
 	vm.scripts = cmap.New()
 	vm.cache.SetIfAbsentCb(string(vm.version+1), vm.createNewPool)
@@ -35,8 +41,8 @@ func NewLuaVM(binder IBinder, minSize int, maxSize int) *LuaVM {
 }
 
 //Call 选取最新的脚本引擎执行当前脚本
-func (vm *LuaVM) Call(script string, input *Context) (result []string, outparams map[string]string, err error) {
-	if vm.isClose {
+func (vm *LuaVM) Call(script string, input *Context) (result []string, params map[string]string, err error) {
+	if vm.done {
 		err = errors.New("虚拟机已关闭")
 		return
 	}
@@ -51,7 +57,7 @@ func (vm *LuaVM) Call(script string, input *Context) (result []string, outparams
 
 //Reload 重新加载所有引擎
 func (vm *LuaVM) Reload() {
-	if vm.isClose {
+	if vm.done {
 		return
 	}
 	vm.lk.Lock()
@@ -68,20 +74,23 @@ func (vm *LuaVM) Reload() {
 
 //PreLoad 预加载脚本
 func (vm *LuaVM) PreLoad(script string) (err error) {
-	if vm.isClose {
+	if vm.done {
 		err = errors.New("虚拟机已关闭")
+		return
+	}
+	pl, _ := vm.cache.Get(string(vm.version))
+	_, err = pl.(*LuaPool).PreLoad(script)
+	if err != nil {
 		return
 	}
 	vm.watcher.Append(script)
 	vm.scripts.SetIfAbsent(script, script)
-	pl, _ := vm.cache.Get(string(vm.version))
-	_, err = pl.(*LuaPool).PreLoad(script)
-	return
+	return nil
 }
 
 //Close 关闭引擎
 func (vm *LuaVM) Close() {
-	vm.isClose = true
+	vm.done = true
 	vm.cache.RemoveIterCb(func(key string, p interface{}) bool {
 		p.(*LuaPool).Close()
 		return true

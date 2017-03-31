@@ -38,9 +38,9 @@ func typeInfluxType(L *lua.LState) int {
 }
 
 // Checks whether the first lua argument is a *LUserData with *Person and returns this *Person.
-func checkInfluxDBType(L *lua.LState) *influxdb.InfluxDB {
+func checkInfluxDBType(L *lua.LState) *influxdb.Client {
 	ud := L.CheckUserData(1)
-	if v, ok := ud.Value.(*influxdb.InfluxDB); ok {
+	if v, ok := ud.Value.(*influxdb.Client); ok {
 		return v
 	}
 	L.RaiseError("bad argument  (influxdb.InfluxDB expected, got %s)", ud.Type().String())
@@ -48,7 +48,24 @@ func checkInfluxDBType(L *lua.LState) *influxdb.InfluxDB {
 }
 func typeInfluxDBSave(L *lua.LState) int {
 	p := checkInfluxDBType(L)
-	row := L.CheckString(2)
-	a := p.SaveString(row)
-	return pushValues(L, a)
+	data := L.CheckString(2)
+	database := L.CheckString(3)
+
+	retentionPolicy := ""
+	precision := ""
+	writeConsistency := ""
+	if L.GetTop() > 3 {
+		retentionPolicy = L.CheckString(4)
+	}
+	if L.GetTop() > 4 {
+		precision = L.CheckString(5)
+	}
+	if L.GetTop() > 5 {
+		writeConsistency = L.CheckString(6)
+	}
+	_, err := p.WriteLineProtocol(data, database, retentionPolicy, precision, writeConsistency)
+	if err != nil {
+		return pushValues(L, "", err)
+	}
+	return pushValues(L)
 }

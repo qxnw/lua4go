@@ -56,9 +56,9 @@ func (p *LuaPool) PreLoad(script string) (pl pool.IPool, err error) {
 		err = errors.New("脚本引擎已经关闭")
 		return
 	}
-	if _, obj, err := p.cache.SetIfAbsentCb(script, func(input ...interface{}) (interface{}, error) {
+	_, obj, err := p.cache.SetIfAbsentCb(script, func(input ...interface{}) (interface{}, error) {
 		script := input[0].(string)
-		return pool.New(&pool.PoolConfigOptions{
+		p, err := pool.New(&pool.PoolConfigOptions{
 			InitialCap:  p.minSize,
 			MaxCap:      p.maxSize,
 			IdleTimeout: IdleTimeout,
@@ -71,11 +71,14 @@ func (p *LuaPool) PreLoad(script string) (pl pool.IPool, err error) {
 				return nil
 			},
 		})
+		return p, err
 
-	}, script); err == nil {
+	}, script)
+
+	if err == nil {
 		pl = obj.(pool.IPool)
 	}
-	return
+	return pl, err
 }
 
 //Close 关闭所有连接池

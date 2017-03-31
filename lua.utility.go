@@ -5,19 +5,21 @@ import (
 	"reflect"
 	"runtime/debug"
 
-	"github.com/qxnw/lib4go/logger"
 	"github.com/qxnw/lua4go/core"
 	"github.com/yuin/gopher-lua"
 )
 
-func luaRecover(log logger.ILogger) {
+func luaRecover(log Logger) {
 	if r := recover(); r != nil {
 		log.Fatal(r, string(debug.Stack()))
 	}
 }
 
-func json2LuaTable(L *lua.LState, input string, log logger.ILogger) (inputValue lua.LValue, err error) {
+func json2LuaTable(L *lua.LState, input string, log Logger) (inputValue lua.LValue, err error) {
 	defer luaRecover(log)
+	if input == "" {
+		input = "{}"
+	}
 	data := make(map[string]interface{})
 	err = json.Unmarshal([]byte(input), &data)
 	if err != nil {
@@ -30,7 +32,7 @@ func json2LuaTable(L *lua.LState, input string, log logger.ILogger) (inputValue 
 	inputValue = tb
 	return
 }
-func json2LuaTableValue(L *lua.LState, value interface{}, log logger.ILogger) (inputValue lua.LValue) {
+func json2LuaTableValue(L *lua.LState, value interface{}, log Logger) (inputValue lua.LValue) {
 	val := reflect.ValueOf(value)
 	switch val.Kind() {
 	case reflect.Slice:
@@ -53,12 +55,12 @@ func json2LuaTableValue(L *lua.LState, value interface{}, log logger.ILogger) (i
 	return
 }
 func getValue(L *lua.LState, obj lua.LValue, key string) (lv lua.LValue) {
-	if obj == nil {
+	if obj == nil || obj == lua.LNil {
 		lv = L.GetGlobal(key)
 		return
 	}
 	lv = L.GetField(obj, key)
-	if lv == lua.LNil {
+	if lv == lua.LNil || lv == nil {
 		lv = L.GetGlobal(key)
 		return
 	}
@@ -77,15 +79,15 @@ func getResponse(L *lua.LState) (r map[string]string) {
 	r = make(map[string]string)
 	response := L.GetGlobal("response")
 	for i, v := range fields {
-		fied := getValue(L, response, i)
-		if fied == lua.LNil {
+		filed := getValue(L, response, i)
+		if filed == lua.LNil {
 			continue
 		}
-		r[v] = fied.String()
+		r[v] = filed.String()
 	}
 	return
 }
-func luaTable2Json(tb *lua.LTable, log logger.ILogger) (s string, err error) {
+func luaTable2Json(tb *lua.LTable, log Logger) (s string, err error) {
 	data, err := luaTable2Map(tb, log)
 	if err != nil {
 		return
@@ -98,7 +100,7 @@ func luaTable2Json(tb *lua.LTable, log logger.ILogger) (s string, err error) {
 	return
 }
 
-func luaTable2Map(tb *lua.LTable, log logger.ILogger) (data map[string]interface{}, err error) {
+func luaTable2Map(tb *lua.LTable, log Logger) (data map[string]interface{}, err error) {
 	defer luaRecover(log)
 	data = make(map[string]interface{})
 	tb.ForEach(func(key lua.LValue, value lua.LValue) {
