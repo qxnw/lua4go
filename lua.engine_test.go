@@ -1,6 +1,11 @@
 package lua4go
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/qxnw/lib4go/ut"
+)
 
 //测试引擎创建，基本的脚本调用，返回值转换，输入参数转换
 func TestEngine1(t *testing.T) {
@@ -78,6 +83,20 @@ func TestEngine8(t *testing.T) {
 	_, _, err := engine.Call(NewContext("{}"))
 	refute(t, err, nil)
 }
+func TestEngine81(t *testing.T) {
+	engine, _ := NewLuaEngine("./test/t8.lua", &Binder{})
+	//输入正确参数，返回3个值，但只能处理2个值
+	r, _, err := engine.Call(NewContext(`{"x":100,"y":0}`))
+	fmt.Println(err)
+	ut.Refute(t, err, nil)
+	ut.Expect(t, len(r), 0)
+
+	r, _, err = engine.Call(NewContext(`{"x":100,"y":1}`))
+	ut.Expect(t, err, nil)
+	ut.Expect(t, len(r), 1)
+	ut.Expect(t, r[0], "100")
+}
+
 func TestEngine9(t *testing.T) {
 	engine, _ := NewLuaEngine("./test/t1.lua", &Binder{})
 	//输入正确参数，返回3个值，但只能处理2个值

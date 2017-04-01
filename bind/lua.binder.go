@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/qxnw/lib4go/file"
 	"github.com/qxnw/lua4go/core"
 	"github.com/yuin/gopher-lua"
 )
@@ -24,9 +25,9 @@ type Binder struct {
 }
 
 //NewDefault 构建默认binder
-func NewDefault(pkg string) *Binder {
+func NewDefault(pkg ...string) *Binder {
 	binder := &Binder{}
-	binder.Packages = strings.Split(pkg, ";")
+	binder.Packages = getPackagePaths(pkg...)
 	binder.GlobalFunc = getGlobal()
 	binder.Modules = getModules()
 	binder.Types = getTypes()
@@ -36,7 +37,7 @@ func NewDefault(pkg string) *Binder {
 //New 添加空的绑定函数
 func New(pkg string) *Binder {
 	binder := &Binder{}
-	binder.Packages = strings.Split(pkg, ";")
+	binder.Packages = getPackagePaths(pkg)
 	binder.GlobalFunc = make(map[string]lua.LGFunction)
 	binder.Modules = make(map[string]map[string]lua.LGFunction)
 	binder.Types = []*TypeBinder{}
@@ -88,6 +89,19 @@ func (b *Binder) Bind(l *lua.LState) (err error) {
 	return
 
 }
+func getPackagePaths(p ...string) (pkgs []string) {
+	pkgs = make([]string, 0, 0)
+	for _, one := range p {
+		ps := strings.Split(one, ";")
+		for _, v := range ps {
+			if v != "" {
+				pkgs = append(pkgs, v)
+			}
+		}
+	}
+	return
+
+}
 
 func addPackages(l *lua.LState, paths ...string) (err error) {
 	if paths == nil || len(paths) == 0 {
@@ -99,7 +113,9 @@ func addPackages(l *lua.LState, paths ...string) (err error) {
 		}
 	}()
 	for _, v := range paths {
-		pk := `local p = [[` + strings.Replace(v, "//", "/", -1) + `]]
+		p := file.GetAbs(v)
+		fmt.Println(p)
+		pk := `local p = [[` + strings.Replace(p, "//", "/", -1) + `]]
 local m_package_path = package.path
 package.path = string.format('%s;%s/?.lua;%s/?.luac;%s/?.dll',
 	m_package_path, p,p,p)`

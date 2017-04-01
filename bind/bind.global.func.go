@@ -1,33 +1,37 @@
 package bind
 
 import (
-	"fmt"
 	"time"
 
-	"errors"
+	"fmt"
 
 	"github.com/qxnw/lib4go/utility"
 	"github.com/yuin/gopher-lua"
 )
 
+//用于获取当前运行时的输入参数
 func globalGetParams(ls *lua.LState) (params []interface{}) {
 	c := ls.GetTop()
 	params = make([]interface{}, 0, c)
 	for i := 1; i <= c; i++ {
-		t := ls.Get(i).Type().String()
-		if t == "userdata" {
-			params = append(params, fmt.Sprintf("%+v", ls.CheckUserData(i).Value))
-		} else {
-			params = append(params, ls.Get(i).String())
+		value := ls.Get(i)
+		switch value.(type) {
+		case *lua.LUserData:
+			params = append(params, ls.CheckUserData(i).Value)
+		default:
+			params = append(params, value.String())
 		}
 	}
+	ls.Pop(c)
 	return
 }
 
+//获取guid
 func globalGUID(ls *lua.LState) int {
 	return pushValues(ls, utility.GetGUID())
 }
 
+//获取日志组件的info函数
 func globalInfo(ls *lua.LState) int {
 	params := globalGetParams(ls)
 	if len(params) == 0 {
@@ -40,10 +44,12 @@ func globalInfo(ls *lua.LState) int {
 	lg.Info(params...)
 	return pushValues(ls)
 }
+
+//获取日志组件的infof函数
 func globalInfof(ls *lua.LState) int {
 	params := globalGetParams(ls)
 	if len(params) <= 1 {
-		return pushValues(ls, errors.New("输入参数个数有误"))
+		return pushValues(ls, fmt.Errorf(`bad argument #%v to %v (%v expected, got %v)`, "1", "infof", "string", "nil"))
 	}
 	lg, err := globalGetLogger(ls)
 	if err != nil {
@@ -68,7 +74,7 @@ func globalError(ls *lua.LState) int {
 func globalErrorf(ls *lua.LState) int {
 	params := globalGetParams(ls)
 	if len(params) <= 1 {
-		return pushValues(ls, errors.New("输入参数个数有误"))
+		return pushValues(ls, fmt.Errorf(`bad argument #%v to %v (%v expected, got %v)`, "1", "errorf", "string", "nil"))
 	}
 	lg, err := globalGetLogger(ls)
 	if err != nil {

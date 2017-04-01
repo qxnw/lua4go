@@ -11,7 +11,7 @@ import (
 
 func luaRecover(log Logger) {
 	if r := recover(); r != nil {
-		log.Fatal(r, string(debug.Stack()))
+		log.Error(r, string(debug.Stack()))
 	}
 }
 

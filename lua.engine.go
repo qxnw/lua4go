@@ -2,6 +2,7 @@ package lua4go
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	"time"
 
@@ -25,25 +26,42 @@ type LuaEngine struct {
 func NewLuaEngine(script string, binder IBinder) (engine *LuaEngine, err error) {
 	engine = &LuaEngine{script: script, binder: binder}
 	engine.state = lua.NewState()
-	if err = binder.Bind(engine.state); err != nil {
-		return
-	}
-	err = engine.state.DoFile(script)
+	err = engine.init(script, binder)
 	if err != nil {
-		err = fmt.Errorf("脚本语法错误:%s,%+v", script, err)
-		engine.state.Close()
 		return
 	}
-	main := engine.state.GetGlobal("main")
+	return
+
+}
+func (e *LuaEngine) init(script string, binder IBinder) (err error) {
+	if err = binder.Bind(e.state); err != nil {
+		return
+	}
+	err = e.state.DoFile(script)
+	if err != nil {
+		err = fmt.Errorf("脚本不存在或语法错误:%s,%+v", script, err)
+		e.state.Close()
+		return
+	}
+	main := e.state.GetGlobal("main")
 	if main == lua.LNil {
 		err = fmt.Errorf("未找到main函数:%s", script)
 		return
 	}
 	return
 }
+func (e *LuaEngine) runException(context *Context, err error) {
+	context.Logger.Error(err)
+	e.state.Close()
+	e.init(e.script, e.binder)
+}
 
 //Call 初始化脚本参数，并执行脚本
 func (e *LuaEngine) Call(context *Context) (result []string, params map[string]string, err error) {
+	if e.state == nil {
+		err = fmt.Errorf("脚本不存在或语法错误:%s", e.script)
+		return
+	}
 	defer luaRecover(context.Logger)
 	startTime := time.Now()
 
@@ -56,8 +74,9 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 	context.Logger.Infof("----开始执行脚本:%s", e.script)
 	values, err := callMain(e.state, inputData, context.Logger)
 	if err != nil {
-		err = fmt.Errorf("脚本执行异常:%+v", err)
-		return
+		err = fmt.Errorf("脚本执行异常,%+v:%+v", time.Since(startTime), err)
+		e.runException(context, err)
+		return nil, nil, err
 	}
 	result = []string{}
 	for _, lv := range values {
@@ -65,20 +84,29 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		case lua.LString:
 			result = append(result, lv.String())
 		case lua.LNumber:
+			rvalue := fmt.Sprintf("%f", lv)
+			if rvalue == "NaN" || rvalue == "+Inf" {
+				err = fmt.Errorf("脚本返回值错误(%s)(%+v)，只支持字符串,数字和table,%f", e.script, time.Since(startTime), lv)
+				e.runException(context, err)
+				return
+			}
 			result = append(result, lv.String())
 		case *lua.LTable:
 			data, err := luaTable2Json(lv.(*lua.LTable), context.Logger)
 			if err != nil {
-				err = fmt.Errorf("脚本返回结果解析失败:%v", err)
+				err = fmt.Errorf("脚本返回结果错误(%s)(%+v),解析失败:%v", e.script, time.Since(startTime), err)
+				e.runException(context, err)
 				return nil, nil, err
 			}
 			result = append(result, data)
 		default:
-			err = fmt.Errorf("脚本返回值错误，只支持字符串和table:%s", e.script)
+			err = fmt.Errorf("脚本返回值错误(%s)(%+v)，只支持字符串,数字和table:%s", e.script, time.Since(startTime), e.script)
+			e.runException(context, err)
+			return
 		}
 	}
 	params = getResponse(e.state)
-	context.Logger.Infof("----完成执行脚本:%s,%+v", e.script, time.Since(startTime))
+	context.Logger.Infof("----完成执行脚本:%s,%v,(%+v)", e.script, result, time.Since(startTime))
 	return
 }
 
@@ -88,7 +116,11 @@ func (e *LuaEngine) Close() {
 }
 
 func callMain(ls *lua.LState, inputValue lua.LValue, log Logger) (rt []lua.LValue, er error) {
-	defer luaRecover(log)
+	defer func() {
+		if r := recover(); r != nil {
+			er = fmt.Errorf("%+v,%s", r, string(debug.Stack()))
+		}
+	}()
 	ls.Pop(ls.GetTop())
 	er = callMainFunc(ls, inputValue)
 	if er != nil {
@@ -108,7 +140,7 @@ func callMainFunc(ls *lua.LState, args ...lua.LValue) (err error) {
 	block := lua.P{
 		Fn:      ls.GetGlobal("main"),
 		NRet:    1,
-		Protect: true,
+		Protect: false,
 	}
 	return ls.CallByParam(block, args...)
 }
