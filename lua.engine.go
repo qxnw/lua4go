@@ -51,9 +51,9 @@ func (e *LuaEngine) init(script string, binder IBinder) (err error) {
 	return
 }
 func (e *LuaEngine) runException(context *Context, err error) {
-	context.Logger.Error(err)
-	e.state.Close()
-	e.init(e.script, e.binder)
+	//context.Logger.Error(err)
+	//e.state.Close()
+	//e.init(e.script, e.binder)
 }
 
 //Call 初始化脚本参数，并执行脚本
@@ -71,7 +71,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		err = fmt.Errorf("脚本输入参数转换失败:%v", err)
 		return
 	}
-	context.Logger.Infof("----开始执行脚本:%s", e.script)
+	//	context.Logger.Infof("----开始执行脚本:%s", e.script)
 	values, err := callMain(e.state, inputData, context.Logger)
 	if err != nil {
 		err = fmt.Errorf("脚本执行异常,%+v:%+v", time.Since(startTime), err)
@@ -106,7 +106,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		}
 	}
 	params = getResponse(e.state)
-	context.Logger.Infof("----完成执行脚本:%s,%v,(%+v)", e.script, result, time.Since(startTime))
+	//context.Logger.Infof("----完成执行脚本:%s,%v,(%+v)", e.script, result, time.Since(startTime))
 	return
 }
 

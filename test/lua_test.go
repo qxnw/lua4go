@@ -1,13 +1,6 @@
 package test
 
-import (
-	"testing"
-
-	"github.com/qxnw/lib4go/ut"
-	"github.com/qxnw/lua4go"
-	"github.com/qxnw/lua4go/bind"
-)
-
+/*
 func TestTEngineT1(t *testing.T) {
 	engine, err := lua4go.NewLuaEngine("./t30.lua", bind.NewDefault())
 	ut.Expect(t, err, nil)
@@ -23,3 +16,17 @@ func TestTEngineT2(t *testing.T) {
 	_, _, err = engine.Call(lua4go.NewContext("{}"))
 	ut.Refute(t, err, nil)
 }
+func TestTEngineT3(t *testing.T) {
+	engine, err := lua4go.NewLuaEngine("./t1.lua", bind.NewDefault())
+	ut.Expect(t, err, nil)
+	for i := 0; i < 100000; i++ {
+		_, _, err := engine.Call(lua4go.NewContext("{}"))
+		if ut.ExpectSkip(t, err, nil) {
+			return
+		}
+		if i%100 == 0 {
+			t.Logf("%+v", memory.GetInfo().Used)
+		}
+	}
+}
+*/

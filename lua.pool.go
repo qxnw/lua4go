@@ -11,7 +11,6 @@ import (
 )
 
 //IdleTimeout 最长空闲时间
-var IdleTimeout = time.Second * 30
 
 //LuaPool lua引擎池
 type LuaPool struct {
@@ -19,20 +18,21 @@ type LuaPool struct {
 	minSize int
 	maxSize int
 	using   int32
-	isClose bool
+	done    bool
 	cache   cmap.ConcurrentMap
+	Timeout time.Duration
 }
 
 //NewLuaPool 构建LUA引擎池
-func NewLuaPool(binder IBinder, minSize int, maxSize int) *LuaPool {
-	pool := &LuaPool{binder: binder, minSize: minSize, maxSize: maxSize, isClose: false}
+func NewLuaPool(binder IBinder, minSize int, maxSize int, timeout time.Duration) *LuaPool {
+	pool := &LuaPool{binder: binder, minSize: minSize, maxSize: maxSize, Timeout: timeout}
 	pool.cache = cmap.New()
 	return pool
 }
 
 //Call 选取最新使用的引擎并根据输入参数执行
 func (p *LuaPool) Call(script string, context *Context) (result []string, params map[string]string, err error) {
-	if p.isClose {
+	if p.done {
 		err = errors.New("脚本引擎已关闭")
 		return
 	}
@@ -52,7 +52,7 @@ func (p *LuaPool) Call(script string, context *Context) (result []string, params
 
 //PreLoad 预加载脚本引擎
 func (p *LuaPool) PreLoad(script string) (pl pool.IPool, err error) {
-	if p.isClose {
+	if p.done {
 		err = errors.New("脚本引擎已经关闭")
 		return
 	}
@@ -61,7 +61,7 @@ func (p *LuaPool) PreLoad(script string) (pl pool.IPool, err error) {
 		p, err := pool.New(&pool.PoolConfigOptions{
 			InitialCap:  p.minSize,
 			MaxCap:      p.maxSize,
-			IdleTimeout: IdleTimeout,
+			IdleTimeout: p.Timeout,
 			Factory: func() (interface{}, error) {
 				return NewLuaEngine(script, p.binder)
 			},
@@ -83,20 +83,17 @@ func (p *LuaPool) PreLoad(script string) (pl pool.IPool, err error) {
 
 //Close 关闭所有连接池
 func (p *LuaPool) Close() {
-	p.isClose = true
+	p.done = true
 	go func() {
-		tk := time.NewTicker(time.Second * 5)
-	START:
 		for {
 			select {
-			case <-tk.C:
+			case <-time.After(time.Second):
 				if p.using == 0 {
 					p.cache.RemoveIterCb(func(key string, pl interface{}) bool {
 						pl.(pool.IPool).Release()
 						return true
 					})
-					tk.Stop()
-					break START
+					return
 				}
 			}
 		}

@@ -16,6 +16,10 @@ type fileWatcher interface {
 	Append(string) error
 }
 
+var (
+	ErrVMClose = errors.New("vm is closing")
+)
+
 //LuaVM lua虚拟机
 type LuaVM struct {
 	version int32
@@ -23,6 +27,7 @@ type LuaVM struct {
 	watcher fileWatcher
 	cache   cmap.ConcurrentMap
 	scripts cmap.ConcurrentMap
+	timeout time.Duration
 	done    bool
 	minSize int
 	maxSize int
@@ -30,8 +35,8 @@ type LuaVM struct {
 }
 
 //NewLuaVM   构建LUA对象池
-func NewLuaVM(binder IBinder, minSize int, maxSize int) *LuaVM {
-	vm := &LuaVM{binder: binder, version: 99, minSize: minSize, maxSize: maxSize}
+func NewLuaVM(binder IBinder, minSize int, maxSize int, timeout time.Duration) *LuaVM {
+	vm := &LuaVM{binder: binder, version: 99, minSize: minSize, maxSize: maxSize, timeout: timeout}
 	vm.watcher = file.NewDirWatcher(vm.Reload, time.Second*5)
 	vm.cache = cmap.New()
 	vm.scripts = cmap.New()
@@ -43,12 +48,12 @@ func NewLuaVM(binder IBinder, minSize int, maxSize int) *LuaVM {
 //Call 选取最新的脚本引擎执行当前脚本
 func (vm *LuaVM) Call(script string, input *Context) (result []string, params map[string]string, err error) {
 	if vm.done {
-		err = errors.New("虚拟机已关闭")
+		err = ErrVMClose
 		return
 	}
 	pl, b := vm.cache.Get(string(vm.version))
 	if !b {
-		err = errors.New("内部错误未找到引擎")
+		err = ErrVMClose
 		return
 	}
 	defer vm.watcher.Append(script)
@@ -75,7 +80,7 @@ func (vm *LuaVM) Reload() {
 //PreLoad 预加载脚本
 func (vm *LuaVM) PreLoad(script string) (err error) {
 	if vm.done {
-		err = errors.New("虚拟机已关闭")
+		err = ErrVMClose
 		return
 	}
 	pl, _ := vm.cache.Get(string(vm.version))
@@ -98,7 +103,7 @@ func (vm *LuaVM) Close() {
 }
 
 func (vm *LuaVM) createNewPool(args ...interface{}) (p interface{}, er error) {
-	pl := NewLuaPool(vm.binder, vm.minSize, vm.maxSize)
+	pl := NewLuaPool(vm.binder, vm.minSize, vm.maxSize, vm.timeout)
 	vm.scripts.IterCb(func(k string, v interface{}) bool {
 		pl.PreLoad(k)
 		return true
