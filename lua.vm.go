@@ -1,6 +1,7 @@
 package lua4go
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -95,6 +96,7 @@ func (vm *LuaVM) PreLoad(script string) (err error) {
 
 //Close 关闭引擎
 func (vm *LuaVM) Close() {
+	fmt.Println("called.close.vm")
 	vm.done = true
 	vm.cache.RemoveIterCb(func(key string, p interface{}) bool {
 		p.(*LuaPool).Close()

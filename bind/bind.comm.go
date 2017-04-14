@@ -2,6 +2,7 @@ package bind
 
 import (
 	"errors"
+	"net/http"
 
 	"github.com/arsgo/lib4go/script"
 	"github.com/qxnw/lua4go"
@@ -21,12 +22,25 @@ func globalGetLogger(ls *lua.LState) (lg lua4go.Logger, err error) {
 	}
 	return context.Logger, nil
 }
-func moduleHTTPContext(ls *lua.LState) (*lua4go.HttpContext, error) {
+func moduleHTTPResponseWriter(ls *lua.LState) (http.ResponseWriter, error) {
 	context, err := getContext(ls)
 	if err != nil {
 		return nil, err
 	}
-	return context.HttpContext, nil
+	if r, ok := context.Data["__func_http_response_"]; ok {
+		return r.(http.ResponseWriter), nil
+	}
+	return nil, errors.New("未找到http.ResponseWriter")
+}
+func moduleHTTPRequest(ls *lua.LState) (*http.Request, error) {
+	context, err := getContext(ls)
+	if err != nil {
+		return nil, err
+	}
+	if r, ok := context.Data["__func_http_request_"]; ok {
+		return r.(*http.Request), nil
+	}
+	return nil, errors.New("未找到http.ResponseWriter")
 }
 func getContext(ls *lua.LState) (*lua4go.Context, error) {
 	context := ls.GetGlobal("__context__")

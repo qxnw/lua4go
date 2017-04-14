@@ -3,12 +3,15 @@ package lua4go
 import (
 	"fmt"
 	"runtime/debug"
+	"sync/atomic"
 
 	"time"
 
 	"github.com/qxnw/lua4go/core"
 	"github.com/yuin/gopher-lua"
 )
+
+var counter int32
 
 //IBinder 基础库绑定
 type IBinder interface {
@@ -22,12 +25,25 @@ type LuaEngine struct {
 	state  *lua.LState
 }
 
+func printCounter(v int32) {
+	atomic.AddInt32(&counter, v)
+	//if v > 0 {
+	//fmt.Println("+", atomic.LoadInt32(&counter))
+	//} else {
+	//	fmt.Println("-", atomic.LoadInt32(&counter))
+	//}
+}
+
 //NewLuaEngine 初始化lua引擎
 func NewLuaEngine(script string, binder IBinder) (engine *LuaEngine, err error) {
 	engine = &LuaEngine{script: script, binder: binder}
+	printCounter(1)
 	engine.state = lua.NewState()
 	err = engine.init(script, binder)
 	if err != nil {
+		//	if engine.state != nil {
+		//engine.state.Close()
+		//}
 		return
 	}
 	return
@@ -40,6 +56,7 @@ func (e *LuaEngine) init(script string, binder IBinder) (err error) {
 	err = e.state.DoFile(script)
 	if err != nil {
 		err = fmt.Errorf("脚本不存在或语法错误:%s,%+v", script, err)
+		printCounter(-1)
 		e.state.Close()
 		return
 	}
@@ -51,9 +68,10 @@ func (e *LuaEngine) init(script string, binder IBinder) (err error) {
 	return
 }
 func (e *LuaEngine) runException(context *Context, err error) {
-	//context.Logger.Error(err)
-	//e.state.Close()
-	//e.init(e.script, e.binder)
+	context.Logger.Error(err)
+	printCounter(-1)
+	e.state.Close()
+	e.init(e.script, e.binder)
 }
 
 //Call 初始化脚本参数，并执行脚本
@@ -106,12 +124,12 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		}
 	}
 	params = getResponse(e.state)
-	//context.Logger.Infof("----完成执行脚本:%s,%v,(%+v)", e.script, result, time.Since(startTime))
 	return
 }
 
 //Close 关闭脚本引擎
 func (e *LuaEngine) Close() {
+	printCounter(-1)
 	e.state.Close()
 }
 

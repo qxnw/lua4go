@@ -109,12 +109,14 @@ func addPackages(l *lua.LState, paths ...string) (err error) {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("addPackages:", r)
+			err = err.(error)
 		}
 	}()
 	for _, v := range paths {
-		p := file.GetAbs(v)
-		fmt.Println(p)
+		p, err := file.GetAbs(v)
+		if err != nil {
+			return fmt.Errorf("pkg path not exist :%s(err:%v)", v, err)
+		}
 		pk := `local p = [[` + strings.Replace(p, "//", "/", -1) + `]]
 local m_package_path = package.path
 package.path = string.format('%s;%s/?.lua;%s/?.luac;%s/?.dll',
