@@ -19,11 +19,13 @@ func getGlobal() (r map[string]lua.LGFunction) {
 func getModules() (r map[string]map[string]lua.LGFunction) {
 	r = map[string]map[string]lua.LGFunction{
 		"context": map[string]lua.LGFunction{
-			"set_cookie":       moduleHTTPContextSetCookie,
-			"get_cookie":       moduleHTTPContextGetCookie,
-			"set_charset":      moduleContexSetCharset,
-			"set_header":       moduleContexSetHeader,
-			"set_content_type": moduleHTTPContextSetContentType,
+			//"set_cookie":       moduleHTTPContextSetCookie,
+			"get_cookie": moduleHTTPContextGetCookie,
+			//"set_charset":      moduleContexSetCharset,
+			//"set_header":       moduleContexSetHeader,
+			"get_body": moduleGetBody,
+			"get_var":  moduleGetVar,
+			//"set_content_type": moduleHTTPContextSetContentType,
 		},
 		"url": map[string]lua.LGFunction{
 			"encode": moduleURLEncode,

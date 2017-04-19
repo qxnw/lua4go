@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"runtime/debug"
 
+	"fmt"
+
 	"github.com/qxnw/lua4go/core"
 	"github.com/yuin/gopher-lua"
 )
@@ -67,30 +69,44 @@ func getValue(L *lua.LState, obj lua.LValue, key string) (lv lua.LValue) {
 	return lv
 }
 
-func getResponse(L *lua.LState) (r map[string]string) {
-	fields := map[string]string{
-		"content_type":   "Content-Type",
-		"charset":        "Charset",
-		"original":       "_original",
-		"raw":            "_original",
-		"__raw__":        "_original",
-		"__set_cookie__": "_cookies",
+func getResponse(params map[string]string, L *lua.LState, log Logger) (r map[string]string, err error) {
+	response := L.GetGlobal("_header")
+	if response == nil || response == lua.LNil {
+		return params, nil
 	}
-	r = make(map[string]string)
-	response := L.GetGlobal("response")
-	for i, v := range fields {
-		filed := getValue(L, response, i)
-		if filed == lua.LNil {
-			continue
+	//检查header是否是luatable
+	if _, ok := response.(*lua.LTable); !ok {
+		return params, nil
+	}
+
+	//转换头信息
+	m, err := luaTable2Map(response.(*lua.LTable), log)
+	if err != nil {
+		return
+	}
+
+	//填充返回参数
+	for i, v := range m {
+		if _, ok := params[i]; !ok && v != nil {
+			params[i] = fmt.Sprintf("%v", v)
 		}
-		r[v] = filed.String()
 	}
-	return
+	return params, nil
 }
-func luaTable2Json(tb *lua.LTable, log Logger) (s string, err error) {
+func luaTable2Json(tb *lua.LTable, log Logger) (s string, m map[string]string, err error) {
+	m = make(map[string]string)
 	data, err := luaTable2Map(tb, log)
 	if err != nil {
 		return
+	}
+	if v, ok := data["_header"]; ok {
+		header, ok := v.(map[string]interface{})
+		if ok {
+			for k, value := range header {
+				m[k] = fmt.Sprintf("%v", value)
+			}
+		}
+		delete(data, "_header")
 	}
 	buffer, err := json.Marshal(&data)
 	if err != nil {
@@ -104,7 +120,7 @@ func luaTable2Map(tb *lua.LTable, log Logger) (data map[string]interface{}, err 
 	defer luaRecover(log)
 	data = make(map[string]interface{})
 	tb.ForEach(func(key lua.LValue, value lua.LValue) {
-		if value == nil {
+		if value == nil || value == lua.LNil {
 			return
 		}
 		if value.Type().String() == "table" {

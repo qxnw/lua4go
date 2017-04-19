@@ -11,6 +11,10 @@ import (
 
 func pushValues(ls *lua.LState, values ...interface{}) int {
 	for _, v := range values {
+		if err, ok := v.(error); ok {
+			ls.Push(script.New(ls, "err:"+err.Error()))
+			continue
+		}
 		ls.Push(script.New(ls, v))
 	}
 	return len(values)
@@ -32,6 +36,7 @@ func moduleHTTPResponseWriter(ls *lua.LState) (http.ResponseWriter, error) {
 	}
 	return nil, errors.New("未找到http.ResponseWriter")
 }
+
 func moduleHTTPRequest(ls *lua.LState) (*http.Request, error) {
 	context, err := getContext(ls)
 	if err != nil {
@@ -42,6 +47,7 @@ func moduleHTTPRequest(ls *lua.LState) (*http.Request, error) {
 	}
 	return nil, errors.New("未找到http.ResponseWriter")
 }
+
 func getContext(ls *lua.LState) (*lua4go.Context, error) {
 	context := ls.GetGlobal("__context__")
 	if context == nil {

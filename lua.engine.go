@@ -7,6 +7,8 @@ import (
 
 	"time"
 
+	"strings"
+
 	"github.com/qxnw/lua4go/core"
 	"github.com/yuin/gopher-lua"
 )
@@ -89,28 +91,40 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		err = fmt.Errorf("脚本输入参数转换失败:%v", err)
 		return
 	}
-	//	context.Logger.Infof("----开始执行脚本:%s", e.script)
+	context.Logger.Infof("----开始执行脚本:%s", e.script)
 	values, err := callMain(e.state, inputData, context.Logger)
 	if err != nil {
 		err = fmt.Errorf("脚本执行异常,%+v:%+v", time.Since(startTime), err)
 		e.runException(context, err)
 		return nil, nil, err
 	}
+	params = make(map[string]string)
 	result = []string{}
 	for _, lv := range values {
+		if lv == nil || lv == lua.LNil {
+			result = append(result, "")
+			continue
+		}
 		switch lv.(type) {
 		case lua.LString:
-			result = append(result, lv.String())
+			txt := lv.String()
+			if strings.HasPrefix(txt, "err:") {
+				err = fmt.Errorf("脚本返回异常(%s)(%+v) %v", e.script, time.Since(startTime), lv)
+				context.Logger.Error(err)
+				return nil, nil, err
+			}
+			result = append(result, txt)
 		case lua.LNumber:
 			rvalue := fmt.Sprintf("%f", lv)
 			if rvalue == "NaN" || rvalue == "+Inf" {
-				err = fmt.Errorf("脚本返回值错误(%s)(%+v)，只支持字符串,数字和table,%f", e.script, time.Since(startTime), lv)
+				err = fmt.Errorf("脚本返回值错误(%s)(%+v)，只支持字符串,数字和table,%v", e.script, time.Since(startTime), lv)
 				e.runException(context, err)
 				return
 			}
 			result = append(result, lv.String())
 		case *lua.LTable:
-			data, err := luaTable2Json(lv.(*lua.LTable), context.Logger)
+			var data string
+			data, params, err = luaTable2Json(lv.(*lua.LTable), context.Logger)
 			if err != nil {
 				err = fmt.Errorf("脚本返回结果错误(%s)(%+v),解析失败:%v", e.script, time.Since(startTime), err)
 				e.runException(context, err)
@@ -118,12 +132,18 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 			}
 			result = append(result, data)
 		default:
-			err = fmt.Errorf("脚本返回值错误(%s)(%+v)，只支持字符串,数字和table:%s", e.script, time.Since(startTime), e.script)
+			err = fmt.Errorf("脚本返回值错误(%s)(%+v)，只支持字符串,数字和table:%s(current:%v)", e.script, time.Since(startTime), e.script, lv)
 			e.runException(context, err)
 			return
 		}
 	}
-	params = getResponse(e.state)
+	params, err = getResponse(params, e.state, context.Logger)
+	if err != nil {
+		err = fmt.Errorf("脚本_header参数解析失败(%s)(%+v),解析失败:%v", e.script, time.Since(startTime), err)
+		e.runException(context, err)
+		return nil, nil, err
+	}
+	context.Logger.Infof("脚本执行完成(%s)(%+v)", e.script, time.Since(startTime))
 	return
 }
 
@@ -158,7 +178,7 @@ func callMainFunc(ls *lua.LState, args ...lua.LValue) (err error) {
 	block := lua.P{
 		Fn:      ls.GetGlobal("main"),
 		NRet:    1,
-		Protect: false,
+		Protect: true,
 	}
 	return ls.CallByParam(block, args...)
 }
