@@ -91,7 +91,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		err = fmt.Errorf("脚本输入参数转换失败:%v", err)
 		return
 	}
-	context.Logger.Infof("----开始执行脚本:%s", e.script)
+	//	context.Logger.Infof("----开始执行脚本:%s", e.script)
 	values, err := callMain(e.state, inputData, context.Logger)
 	if err != nil {
 		err = fmt.Errorf("脚本执行异常,%+v:%+v", time.Since(startTime), err)
@@ -143,7 +143,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		e.runException(context, err)
 		return nil, nil, err
 	}
-	context.Logger.Infof("脚本执行完成(%s)(%+v)", e.script, time.Since(startTime))
+	//	context.Logger.Infof("----脚本执行完成(%s)(%+v)", e.script, time.Since(startTime))
 	return
 }
 
