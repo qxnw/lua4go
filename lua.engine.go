@@ -2,6 +2,7 @@ package lua4go
 
 import (
 	"fmt"
+	"path/filepath"
 	"runtime/debug"
 	"sync/atomic"
 
@@ -18,6 +19,7 @@ var counter int32
 //IBinder 基础库绑定
 type IBinder interface {
 	Bind(*lua.LState) error
+	AddPackages(l *lua.LState, paths ...string) (err error)
 }
 
 //LuaEngine 脚本引擎
@@ -48,10 +50,15 @@ func NewLuaEngine(script string, binder IBinder) (engine *LuaEngine, err error) 
 		//}
 		return
 	}
+
 	return
 
 }
 func (e *LuaEngine) init(script string, binder IBinder) (err error) {
+	err = binder.AddPackages(e.state, filepath.Dir(script))
+	if err != nil {
+		return
+	}
 	if err = binder.Bind(e.state); err != nil {
 		return
 	}

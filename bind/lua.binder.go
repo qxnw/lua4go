@@ -65,7 +65,7 @@ func (b *Binder) AppendModules(mds map[string]map[string]lua.LGFunction) {
 
 //Bind 将全局函数，类型，模块等绑定到引擎
 func (b *Binder) Bind(l *lua.LState) (err error) {
-	err = addPackages(l, b.Packages...)
+	err = b.AddPackages(l, b.Packages...)
 	if err != nil {
 		return
 	}
@@ -103,7 +103,7 @@ func getPackagePaths(p ...string) (pkgs []string) {
 
 }
 
-func addPackages(l *lua.LState, paths ...string) (err error) {
+func (b *Binder) AddPackages(l *lua.LState, paths ...string) (err error) {
 	if paths == nil || len(paths) == 0 {
 		return
 	}

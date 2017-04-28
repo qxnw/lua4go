@@ -1,6 +1,10 @@
 package bind
 
-import lua "github.com/yuin/gopher-lua"
+import (
+	"fmt"
+
+	lua "github.com/yuin/gopher-lua"
+)
 
 func moduleHTTPContextGetCookie(ls *lua.LState) int {
 	key := ls.CheckString(1)
@@ -36,23 +40,28 @@ func moduleHTTPContextSetContentType(ls *lua.LState) int {
 
 //__func_var_get_
 
-func moduleGetVar(ls *lua.LState) int {
-	value1 := ls.CheckString(1)
-	value2 := ls.CheckString(2)
+func getFuncVarGet(ls *lua.LState, t, n string) (v string, err error) {
 	context, err := getContext(ls)
 	if err != nil {
-		return pushValues(ls, "", err)
+		return
 	}
 	if r, ok := context.Data["__func_var_get_"]; ok {
 		if fun, ok := r.(func(string, string) (string, error)); ok {
-			value, err := fun(value1, value2)
-			if err == nil {
-				return pushValues(ls, value)
-			}
-			return pushValues(ls, "", err)
+			v, err = fun(t, n)
+			return
 		}
 	}
-	return pushValues(ls, "", "不支持")
+	return "", fmt.Errorf("未找到__func_var_get_")
+}
+
+func moduleGetVar(ls *lua.LState) int {
+	value1 := ls.CheckString(1)
+	value2 := ls.CheckString(2)
+	value, err := getFuncVarGet(ls, value1, value2)
+	if err != nil {
+		return pushValues(ls, "", err)
+	}
+	return pushValues(ls, value)
 }
 
 func moduleGetBody(ls *lua.LState) int {

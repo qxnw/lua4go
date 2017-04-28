@@ -16,6 +16,7 @@ func pushValues(ls *lua.LState, values ...interface{}) int {
 			continue
 		}
 		ls.Push(script.New(ls, v))
+
 	}
 	return len(values)
 }
@@ -78,4 +79,20 @@ func getMapParams(tb *lua.LTable) map[string]string {
 		}
 	})
 	return data
+}
+func getIMapParams(tb *lua.LTable) map[string]interface{} {
+	data := make(map[string]interface{})
+	tb.ForEach(func(key lua.LValue, value lua.LValue) {
+		if value != nil && value != lua.LNil {
+			data[key.String()] = value.String()
+		}
+	})
+	return data
+}
+func toLuaTable(ls *lua.LState, input []interface{}) (tb *lua.LTable) {
+	tb = ls.NewTable()
+	for i, v := range input {
+		tb.RawSetInt(i+1, script.New(ls, v))
+	}
+	return
 }

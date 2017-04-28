@@ -27,6 +27,13 @@ func getModules() (r map[string]map[string]lua.LGFunction) {
 			"get_var":  moduleGetVar,
 			//"set_content_type": moduleHTTPContextSetContentType,
 		},
+		"rpc": map[string]lua.LGFunction{
+			"request": moduleRPCRequest,
+			"query":   moduleRPCQuery,
+			"update":  moduleRPCUpdate,
+			"insert":  moduleRPCInsert,
+			"delete":  moduleRPCDelete,
+		},
 		"url": map[string]lua.LGFunction{
 			"encode": moduleURLEncode,
 			"decode": moduleURLDecode,
@@ -79,6 +86,8 @@ func getTypes() (r []*TypeBinder) {
 	r = append(r, getinfluxTypeBinder())
 	r = append(r, getMQTypeBinder())
 	r = append(r, getImageDrawTypeBinder())
+	r = append(r, getdbTransTypeBinder())
+	r = append(r, getdbTypeBinder())
 	return
 
 }
