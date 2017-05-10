@@ -20,6 +20,44 @@ var (
 	ErrVMClose = errors.New("vm is closing")
 )
 
+type option struct {
+	watchScriptSpan time.Duration
+	minSize         int
+	maxSize         int
+	timeout         time.Duration
+}
+
+//Option 配置选项
+type Option func(*option)
+
+//WithWatchScript 定时监控脚本
+func WithWatchScript(t time.Duration) Option {
+	return func(o *option) {
+		o.watchScriptSpan = t
+	}
+}
+
+//WithMinSize 设置最小缓存数
+func WithMinSize(t int) Option {
+	return func(o *option) {
+		o.minSize = t
+	}
+}
+
+//WithMaxSize 设置最大缓存数
+func WithMaxSize(t int) Option {
+	return func(o *option) {
+		o.maxSize = t
+	}
+}
+
+//WithTimeout 设置超时时长
+func WithTimeout(t time.Duration) Option {
+	return func(o *option) {
+		o.timeout = t
+	}
+}
+
 //LuaVM lua虚拟机
 type LuaVM struct {
 	version int32
@@ -27,17 +65,22 @@ type LuaVM struct {
 	watcher fileWatcher
 	cache   cmap.ConcurrentMap
 	scripts cmap.ConcurrentMap
-	timeout time.Duration
 	done    bool
-	minSize int
-	maxSize int
 	lk      sync.Mutex
+	*option
 }
 
 //NewLuaVM   构建LUA对象池
-func NewLuaVM(binder IBinder, minSize int, maxSize int, timeout time.Duration) *LuaVM {
-	vm := &LuaVM{binder: binder, version: 99, minSize: minSize, maxSize: maxSize, timeout: timeout}
-	vm.watcher = file.NewDirWatcher(vm.Reload, time.Second*5)
+func NewLuaVM(binder IBinder, opts ...Option) *LuaVM {
+	vm := &LuaVM{binder: binder, version: 99}
+	vm.option = &option{minSize: 1, maxSize: 99, timeout: time.Second * 300}
+	for _, opt := range opts {
+		opt(vm.option)
+	}
+	if vm.watchScriptSpan > 0 {
+		vm.watcher = file.NewDirWatcher(vm.Reload, vm.watchScriptSpan)
+	}
+
 	vm.cache = cmap.New()
 	vm.scripts = cmap.New()
 	vm.cache.SetIfAbsentCb(string(vm.version+1), vm.createNewPool)
@@ -56,7 +99,7 @@ func (vm *LuaVM) Call(script string, input *Context) (result []string, params ma
 		err = ErrVMClose
 		return
 	}
-	defer vm.watcher.Append(script)
+	defer vm.addWatch(script)
 	return pl.(*LuaPool).Call(script, input)
 }
 
@@ -88,7 +131,7 @@ func (vm *LuaVM) PreLoad(script string) (err error) {
 	if err != nil {
 		return
 	}
-	vm.watcher.Append(script)
+	defer vm.addWatch(script)
 	vm.scripts.SetIfAbsent(script, script)
 	return nil
 }
@@ -109,4 +152,10 @@ func (vm *LuaVM) createNewPool(args ...interface{}) (p interface{}, er error) {
 		return true
 	})
 	return pl, nil
+}
+func (vm *LuaVM) addWatch(path string) {
+	if vm.watcher == nil {
+		return
+	}
+	vm.watcher.Append(path)
 }

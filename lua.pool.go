@@ -46,8 +46,12 @@ func (p *LuaPool) Call(script string, context *Context) (result []string, params
 	if err != nil {
 		return
 	}
-	defer pl.Put(engine)
-	return engine.(*LuaEngine).Call(context)
+	eg := engine.(*LuaEngine)
+	result, params, err = eg.Call(context)
+	pl.Put(engine)
+	//eg.Close()
+	return
+
 }
 
 //PreLoad 预加载脚本引擎

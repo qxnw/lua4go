@@ -2,7 +2,12 @@ package bind
 
 import (
 	"errors"
+	"fmt"
 
+	"time"
+
+	"github.com/arsgo/lib4go/script"
+	"github.com/qxnw/lib4go/rpc"
 	"github.com/yuin/gopher-lua"
 )
 
@@ -17,6 +22,13 @@ type rpcInvoker interface {
 	Insert(service string, input map[string]string, failFast bool) (status int, err error)
 	//Delete 发送请求
 	Delete(service string, input map[string]string, failFast bool) (status int, err error)
+	AsyncRequest(service string, input map[string]string, failFast bool) rpc.IRPCResponse
+	AsyncQuery(service string, input map[string]string, failFast bool) rpc.IRPCResponse
+	AsyncDelete(service string, input map[string]string, failFast bool) rpc.IRPCResponse
+
+	AsyncInsert(service string, input map[string]string, failFast bool) rpc.IRPCResponse
+	AsyncUpdate(service string, input map[string]string, failFast bool) rpc.IRPCResponse
+	WaitWithFailFast(callback func(string, int, string, error), timeout time.Duration, rs ...rpc.IRPCResponse) error
 }
 
 func moduleRPC(ls *lua.LState) (rpcInvoker, error) {
@@ -40,7 +52,7 @@ func moduleRPCRequest(ls *lua.LState) int {
 	if err != nil {
 		return pushValues(ls, "", 500, err)
 	}
-	s, r, err := rpc.Request(service, getMapParams(input), failFast)
+	s, r, err := rpc.Request(service, getRPCMap(ls, input), failFast)
 	return pushValues(ls, r, s, err)
 }
 func moduleRPCQuery(ls *lua.LState) int {
@@ -54,7 +66,7 @@ func moduleRPCQuery(ls *lua.LState) int {
 	if err != nil {
 		return pushValues(ls, "", 500, err)
 	}
-	s, r, err := rpc.Query(service, getMapParams(input), failFast)
+	s, r, err := rpc.Query(service, getRPCMap(ls, input), failFast)
 	return pushValues(ls, r, s, err)
 }
 func moduleRPCInsert(ls *lua.LState) int {
@@ -68,7 +80,7 @@ func moduleRPCInsert(ls *lua.LState) int {
 	if err != nil {
 		return pushValues(ls, 500, err)
 	}
-	s, err := rpc.Insert(service, getMapParams(input), failFast)
+	s, err := rpc.Insert(service, getRPCMap(ls, input), failFast)
 	return pushValues(ls, s, err)
 }
 func moduleRPCUpdate(ls *lua.LState) int {
@@ -82,7 +94,7 @@ func moduleRPCUpdate(ls *lua.LState) int {
 	if err != nil {
 		return pushValues(ls, 500, err)
 	}
-	s, err := rpc.Update(service, getMapParams(input), failFast)
+	s, err := rpc.Update(service, getRPCMap(ls, input), failFast)
 	return pushValues(ls, s, err)
 }
 func moduleRPCDelete(ls *lua.LState) int {
@@ -96,6 +108,53 @@ func moduleRPCDelete(ls *lua.LState) int {
 	if err != nil {
 		return pushValues(ls, 500, err)
 	}
-	s, err := rpc.Delete(service, getMapParams(input), failFast)
+	s, err := rpc.Delete(service, getRPCMap(ls, input), failFast)
 	return pushValues(ls, s, err)
+}
+func moduleRPCWait(ls *lua.LState) int {
+	callBack := ls.CheckFunction(1)
+	timeout := ls.CheckInt64(2)
+	actions, err := globalRPCAction(ls)
+	if err != nil {
+		return pushValues(ls, err)
+	}
+	if len(actions) == 0 {
+		return pushValues(ls, errors.New("未指定等待的异常请求"))
+	}
+	rpc, err := moduleRPC(ls)
+	if err != nil {
+		return pushValues(ls, err)
+	}
+	err = rpc.WaitWithFailFast(func(svs string, s int, r string, err error) {
+		co, cannel := ls.NewThread()
+		defer cannel()
+		fmt.Println("4.1", "svs:", svs, "s:", s, "r:", r, "err:", err, "callback:", callBack, "ls:", ls)
+		ls.Resume(co, callBack, script.New(ls, svs), script.New(ls, s), script.New(ls, r), script.New(ls, err))
+		fmt.Println("4.2")
+	}, time.Duration(timeout)*time.Second, actions...)
+
+	return pushValues(ls, err)
+}
+func globalRPCAction(ls *lua.LState) (params []rpc.IRPCResponse, err error) {
+	c := ls.GetTop()
+	params = make([]rpc.IRPCResponse, 0, c)
+	for i := 3; i <= c; i++ {
+		value := ls.CheckUserData(i)
+		if lk, ok := value.Value.(rpc.IRPCResponse); ok {
+			params = append(params, lk)
+		} else {
+			return nil, errors.New("输入参数必须为IRPCResponse类型")
+		}
+	}
+	ls.Pop(c)
+	return
+}
+
+func getRPCMap(ls *lua.LState, input *lua.LTable) map[string]string {
+	data := getMapParams(input)
+	cxt, err := getContext(ls)
+	if err == nil {
+		data["hydra_sid"] = fmt.Sprintf("%v", cxt.Data["hydra_sid"])
+	}
+	return data
 }

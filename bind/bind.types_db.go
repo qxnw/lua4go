@@ -102,7 +102,6 @@ func typeDBQuery(L *lua.LState) int {
 	return pushValues(L, data, err, query, toLuaTable(L, args))
 }
 func typeDBScalar(L *lua.LState) int {
-
 	p := checkDBType(L)
 	query := L.CheckString(2)
 	input := L.CheckTable(3)
@@ -126,7 +125,8 @@ func typeDBTransExecute(L *lua.LState) int {
 	p := checkDBTransType(L)
 	query := L.CheckString(2)
 	input := L.CheckTable(3)
-	row, query, args, err := p.Execute(query, getIMapParams(input))
+	mp := getIMapParams(input)
+	row, query, args, err := p.Execute(query, mp)
 	return pushValues(L, row, err, query, toLuaTable(L, args))
 }
 
@@ -176,8 +176,7 @@ func getDBFromCache(conf string) (*db.DB, error) {
 		if !ok {
 			return nil, fmt.Errorf("db配置文件错误，未包含connString节点:%s", config)
 		}
-		return db.NewDB(provider.(string), connString.(string), 1, 5)
-
+		return db.NewDB(provider.(string), connString.(string), 10)
 	}, conf)
 	if err != nil {
 		return nil, err

@@ -1,9 +1,6 @@
 package lua4go
 
-import (
-	"github.com/qxnw/lib4go/logger"
-	"github.com/qxnw/lib4go/utility"
-)
+import "github.com/qxnw/lib4go/logger"
 
 //Context 脚本执行上下文
 type Context struct {
@@ -13,7 +10,7 @@ type Context struct {
 }
 
 func NewContext(input string) *Context {
-	return NewContextWithLogger(input, map[string]interface{}{}, logger.GetSession("script", utility.GetGUID()))
+	return NewContextWithLogger(input, map[string]interface{}{}, logger.GetSession("script", logger.CreateSession()))
 }
 
 //NewContextWithLogger 初始化Context

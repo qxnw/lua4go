@@ -4,14 +4,15 @@ import "github.com/yuin/gopher-lua"
 
 func getGlobal() (r map[string]lua.LGFunction) {
 	r = map[string]lua.LGFunction{
-		"print":  globalInfo,
-		"printf": globalInfof,
-		"info":   globalInfo,
-		"infof":  globalInfof,
-		"error":  globalError,
-		"errorf": globalErrorf,
-		"sleep":  globalSleep,
-		"guid":   globalGUID,
+		"print":   globalInfo,
+		"printf":  globalInfof,
+		"info":    globalInfo,
+		"infof":   globalInfof,
+		"error":   globalError,
+		"errorf":  globalErrorf,
+		"sleep":   globalSleep,
+		"guid":    globalGUID,
+		"__close": globalClose,
 	}
 	return
 }
@@ -28,11 +29,17 @@ func getModules() (r map[string]map[string]lua.LGFunction) {
 			//"set_content_type": moduleHTTPContextSetContentType,
 		},
 		"rpc": map[string]lua.LGFunction{
-			"request": moduleRPCRequest,
-			"query":   moduleRPCQuery,
-			"update":  moduleRPCUpdate,
-			"insert":  moduleRPCInsert,
-			"delete":  moduleRPCDelete,
+			"request":       moduleRPCRequest,
+			"query":         moduleRPCQuery,
+			"update":        moduleRPCUpdate,
+			"insert":        moduleRPCInsert,
+			"delete":        moduleRPCDelete,
+			"async_delete":  moduleRPCAsyncDelete,
+			"async_insert":  moduleRPCAsyncInsert,
+			"async_query":   moduleRPCAsyncQuery,
+			"async_request": moduleRPCAsyncRequest,
+			"async_update":  moduleRPCAsyncUpdate,
+			"wait":          moduleRPCWait,
 		},
 		"url": map[string]lua.LGFunction{
 			"encode": moduleURLEncode,
@@ -88,6 +95,7 @@ func getTypes() (r []*TypeBinder) {
 	r = append(r, getImageDrawTypeBinder())
 	r = append(r, getdbTransTypeBinder())
 	r = append(r, getdbTypeBinder())
+	r = append(r, getAsyncRpcResponseTypeBinder())
 	return
 
 }

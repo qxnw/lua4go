@@ -29,19 +29,19 @@ type LuaEngine struct {
 	state  *lua.LState
 }
 
-func printCounter(v int32) {
+func (e *LuaEngine) printCounter(v int32) {
 	atomic.AddInt32(&counter, v)
-	//if v > 0 {
-	//fmt.Println("+", atomic.LoadInt32(&counter))
-	//} else {
-	//	fmt.Println("-", atomic.LoadInt32(&counter))
-	//}
+	if v > 0 {
+		fmt.Println("+", atomic.LoadInt32(&counter), e.script)
+	} else {
+		fmt.Println("-", atomic.LoadInt32(&counter), e.script)
+	}
 }
 
 //NewLuaEngine 初始化lua引擎
 func NewLuaEngine(script string, binder IBinder) (engine *LuaEngine, err error) {
 	engine = &LuaEngine{script: script, binder: binder}
-	printCounter(1)
+	engine.printCounter(1)
 	engine.state = lua.NewState()
 	err = engine.init(script, binder)
 	if err != nil {
@@ -65,7 +65,7 @@ func (e *LuaEngine) init(script string, binder IBinder) (err error) {
 	err = e.state.DoFile(script)
 	if err != nil {
 		err = fmt.Errorf("脚本不存在或语法错误:%s,%+v", script, err)
-		printCounter(-1)
+		e.printCounter(-1)
 		e.state.Close()
 		return
 	}
@@ -76,9 +76,19 @@ func (e *LuaEngine) init(script string, binder IBinder) (err error) {
 	}
 	return
 }
+func (e *LuaEngine) clearState() {
+	if e.state != nil {
+		//e.state.DoString(`
+		// collectgarbage("collect")
+		//if __close~=nil then
+		//	__close()
+		//end
+		//`)
+	}
+}
 func (e *LuaEngine) runException(context *Context, err error) {
 	context.Logger.Error(err)
-	printCounter(-1)
+	e.printCounter(-1)
 	e.state.Close()
 	e.init(e.script, e.binder)
 }
@@ -90,6 +100,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		return
 	}
 	defer luaRecover(context.Logger)
+	defer e.clearState()
 	startTime := time.Now()
 
 	e.state.SetGlobal("__context__", core.New(e.state, context))
@@ -98,7 +109,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		err = fmt.Errorf("脚本输入参数转换失败:%v", err)
 		return
 	}
-	//	context.Logger.Infof("----开始执行脚本:%s", e.script)
+	context.Logger.Infof("----开始执行脚本:%s", e.script)
 	values, err := callMain(e.state, inputData, context.Logger)
 	if err != nil {
 		err = fmt.Errorf("脚本执行异常,%+v:%+v", time.Since(startTime), err)
@@ -150,13 +161,13 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		e.runException(context, err)
 		return nil, nil, err
 	}
-	//	context.Logger.Infof("----脚本执行完成(%s)(%+v)", e.script, time.Since(startTime))
+	context.Logger.Infof("----脚本执行完成(%s)(%+v)", e.script, time.Since(startTime))
 	return
 }
 
 //Close 关闭脚本引擎
 func (e *LuaEngine) Close() {
-	printCounter(-1)
+	e.printCounter(-1)
 	e.state.Close()
 }
 

@@ -88,3 +88,7 @@ func globalSleep(ls *lua.LState) int {
 	time.Sleep(time.Second * time.Duration(second))
 	return pushValues(ls)
 }
+func globalClose(ls *lua.LState) int {
+	//	closeDbStatus(ls)
+	return 0
+}
