@@ -25,21 +25,25 @@ func getMQTypeBinder() *TypeBinder {
 }
 
 // Constructor
-func typeMQProducerType(L *lua.LState) int {
+func typeMQProducerType(ls *lua.LState) int {
 	var err error
-	ud := L.NewUserData()
-	config := L.CheckString(1)
-	_, producer, err := mqProducerCache.SetIfAbsentCb(config, func(p ...interface{}) (interface{}, error) {
+	ud := ls.NewUserData()
+	name := ls.CheckString(1)
+	value, err := getFuncVarGet(ls, "mq", name)
+	if err != nil {
+		return pushValues(ls, "", err)
+	}
+	_, producer, err := mqProducerCache.SetIfAbsentCb(value, func(p ...interface{}) (interface{}, error) {
 		config := p[0].(string)
 		return mq.NewStompProducerJSON(config)
-	}, config)
+	}, value)
 	if err != nil {
-		return pushValues(L, nil, err)
+		return pushValues(ls, nil, err)
 	}
 
 	ud.Value = producer
-	L.SetMetatable(ud, L.GetTypeMetatable("mqproducer"))
-	L.Push(ud)
+	ls.SetMetatable(ud, ls.GetTypeMetatable("mqproducer"))
+	ls.Push(ud)
 	return 1
 }
 

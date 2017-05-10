@@ -31,11 +31,11 @@ type LuaEngine struct {
 
 func (e *LuaEngine) printCounter(v int32) {
 	atomic.AddInt32(&counter, v)
-	if v > 0 {
+	/*if v > 0 {
 		fmt.Println("+", atomic.LoadInt32(&counter), e.script)
 	} else {
 		fmt.Println("-", atomic.LoadInt32(&counter), e.script)
-	}
+	}*/
 }
 
 //NewLuaEngine 初始化lua引擎
