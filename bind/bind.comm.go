@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/arsgo/lib4go/script"
+	"github.com/qxnw/lib4go/logger"
 	"github.com/qxnw/lua4go"
 	"github.com/yuin/gopher-lua"
 )
@@ -20,7 +21,7 @@ func pushValues(ls *lua.LState, values ...interface{}) int {
 	}
 	return len(values)
 }
-func globalGetLogger(ls *lua.LState) (lg lua4go.Logger, err error) {
+func globalGetLogger(ls *lua.LState) (lg *logger.Logger, err error) {
 	context, err := getContext(ls)
 	if err != nil {
 		return nil, err
