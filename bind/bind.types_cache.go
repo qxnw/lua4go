@@ -1,6 +1,11 @@
 package bind
 
 import (
+	"fmt"
+
+	"strings"
+
+	"github.com/qxnw/lib4go/jsons"
 	"github.com/qxnw/lib4go/memcache"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -34,16 +39,29 @@ func getMemcachedBinder() *TypeBinder {
 }
 
 // Constructor
-func typeNewMemcached(L *lua.LState) int {
+func typeNewMemcached(ls *lua.LState) int {
 	var err error
-	ud := L.NewUserData()
-	json := L.CheckString(1)
-	ud.Value, err = memcache.NewJSON(json)
+	name := ls.CheckString(1)
+	conf, err := getFuncVarGet(ls, "cache", name)
 	if err != nil {
-		return pushValues(L, "", err)
+		return pushValues(ls, nil, err)
 	}
-	L.SetMetatable(ud, L.GetTypeMetatable("memcached"))
-	L.Push(ud)
+	configMap, err := jsons.Unmarshal([]byte(conf))
+	if err != nil {
+		return pushValues(ls, nil, err)
+	}
+	server, ok := configMap["server"]
+	if !ok {
+		err = fmt.Errorf("cache[%s]配置文件错误，未包含server节点:%s", name, conf)
+		return pushValues(ls, nil, err)
+	}
+	ud := ls.NewUserData()
+	ud.Value, err = memcache.New(strings.Split(server.(string), ";"))
+	if err != nil {
+		return pushValues(ls, nil, err)
+	}
+	ls.SetMetatable(ud, ls.GetTypeMetatable("memcached"))
+	ls.Push(ud)
 	return 1
 }
 
