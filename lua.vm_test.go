@@ -15,6 +15,9 @@ type Binder struct {
 func (b *Binder) Bind(*lua.LState) error {
 	return nil
 }
+func (b *Binder) AddPackages(l *lua.LState, paths ...string) (err error) {
+	return
+}
 
 type watcher struct {
 	callback func()
@@ -25,7 +28,7 @@ func (w *watcher) Append(f string) error {
 }
 
 func TestVM1(t *testing.T) {
-	vm := NewLuaVM(&Binder{}, 1, 1, time.Hour)
+	vm := NewLuaVM(&Binder{}, WithMinSize(1), WithMaxSize(1), WithTimeout(time.Hour))
 	wc := &watcher{callback: vm.Reload}
 	vm.watcher = wc
 	//检查初始值
@@ -53,7 +56,7 @@ func TestVM1(t *testing.T) {
 }
 
 func TestVM2(t *testing.T) {
-	vm := NewLuaVM(&Binder{}, 1, 1, time.Hour)
+	vm := NewLuaVM(&Binder{}, WithMinSize(1), WithMaxSize(1), WithTimeout(time.Hour))
 	wc := &watcher{callback: vm.Reload}
 	vm.watcher = wc
 	//检查初始值
@@ -75,7 +78,7 @@ func TestVM2(t *testing.T) {
 	}
 }
 func TestVM3(t *testing.T) {
-	vm := NewLuaVM(&Binder{}, 1, 1, time.Hour)
+	vm := NewLuaVM(&Binder{}, WithMinSize(1), WithMaxSize(1), WithTimeout(time.Hour))
 	wc := &watcher{callback: vm.Reload}
 	vm.watcher = wc
 	//检查初始值
@@ -98,7 +101,7 @@ func TestVM3(t *testing.T) {
 }
 
 func TestVM4(t *testing.T) {
-	vm := NewLuaVM(&Binder{}, 1, 1, time.Hour)
+	vm := NewLuaVM(&Binder{}, WithMinSize(1), WithMaxSize(1), WithTimeout(time.Hour))
 	wc := &watcher{callback: vm.Reload}
 	vm.watcher = wc
 	//检查初始值

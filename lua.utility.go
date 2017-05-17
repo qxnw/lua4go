@@ -70,10 +70,19 @@ func getValue(L *lua.LState, obj lua.LValue, key string) (lv lua.LValue) {
 }
 
 func getResponse(params map[string]string, L *lua.LState, log Logger) (r map[string]string, err error) {
-	response := L.GetGlobal("_header")
+	response := L.GetGlobal("header")
+	if response == nil || response == lua.LNil {
+		response = L.GetGlobal("response")
+		if response != nil && response != lua.LNil {
+			if h, ok := response.(*lua.LTable); ok {
+				response = h.RawGet(lua.LString("header"))
+			}
+		}
+	}
 	if response == nil || response == lua.LNil {
 		return params, nil
 	}
+
 	//检查header是否是luatable
 	if _, ok := response.(*lua.LTable); !ok {
 		return params, nil
@@ -99,14 +108,14 @@ func luaTable2Json(tb *lua.LTable, log Logger) (s string, m map[string]string, e
 	if err != nil {
 		return
 	}
-	if v, ok := data["_header"]; ok {
+	if v, ok := data["header"]; ok {
 		header, ok := v.(map[string]interface{})
 		if ok {
 			for k, value := range header {
 				m[k] = fmt.Sprintf("%v", value)
 			}
 		}
-		delete(data, "_header")
+		delete(data, "header")
 	}
 	buffer, err := json.Marshal(&data)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/qxnw/lib4go/concurrent/cmap"
 	"github.com/qxnw/lib4go/file"
+	"github.com/qxnw/lib4go/logger"
 )
 
 type fileWatcher interface {
@@ -25,6 +26,7 @@ type option struct {
 	minSize         int
 	maxSize         int
 	timeout         time.Duration
+	logger          *logger.Logger
 }
 
 //Option 配置选项
@@ -48,6 +50,13 @@ func WithMinSize(t int) Option {
 func WithMaxSize(t int) Option {
 	return func(o *option) {
 		o.maxSize = t
+	}
+}
+
+//WithLogger 设置日志组件
+func WithLogger(lg *logger.Logger) Option {
+	return func(o *option) {
+		o.logger = lg
 	}
 }
 
@@ -76,6 +85,9 @@ func NewLuaVM(binder IBinder, opts ...Option) *LuaVM {
 	vm.option = &option{minSize: 1, maxSize: 99, timeout: time.Second * 300}
 	for _, opt := range opts {
 		opt(vm.option)
+	}
+	if vm.logger == nil {
+		vm.logger = logger.GetSession("lua.vm", logger.CreateSession())
 	}
 	if vm.watchScriptSpan > 0 {
 		vm.watcher = file.NewDirWatcher(vm.Reload, vm.watchScriptSpan)
@@ -117,6 +129,7 @@ func (vm *LuaVM) Reload() {
 		atomic.AddInt32(&vm.version, 1)
 		oldPool.(*LuaPool).Close()
 		vm.cache.Remove(oldVersion)
+		vm.logger.Warnf("脚本发生变化已重新加载,version:%d", atomic.LoadInt32(&vm.version))
 	}
 }
 
@@ -129,6 +142,7 @@ func (vm *LuaVM) PreLoad(script string) (err error) {
 	pl, _ := vm.cache.Get(string(vm.version))
 	_, err = pl.(*LuaPool).PreLoad(script)
 	if err != nil {
+
 		return
 	}
 	defer vm.addWatch(script)
@@ -148,7 +162,10 @@ func (vm *LuaVM) Close() {
 func (vm *LuaVM) createNewPool(args ...interface{}) (p interface{}, er error) {
 	pl := NewLuaPool(vm.binder, vm.minSize, vm.maxSize, vm.timeout)
 	vm.scripts.IterCb(func(k string, v interface{}) bool {
-		pl.PreLoad(k)
+		_, err := pl.PreLoad(k)
+		if err != nil {
+			vm.logger.Error(err)
+		}
 		return true
 	})
 	return pl, nil

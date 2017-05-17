@@ -157,7 +157,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 	}
 	params, err = getResponse(params, e.state, context.Logger)
 	if err != nil {
-		err = fmt.Errorf("脚本_header参数解析失败(%s)(%+v),解析失败:%v", e.script, time.Since(startTime), err)
+		err = fmt.Errorf("脚本header参数解析失败(%s)(%+v),解析失败:%v", e.script, time.Since(startTime), err)
 		e.runException(context, err)
 		return nil, nil, err
 	}
