@@ -1,9 +1,8 @@
 package bind
 
 import (
-	"github.com/arsgo/lib4go/draw"
-	"github.com/arsgo/lib4go/script"
 	"github.com/qxnw/lib4go/images"
+	"github.com/qxnw/lua4go/script"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -36,7 +35,8 @@ func typeNewDraw(L *lua.LState) int {
 		L.Push(script.New(L, err))
 		return 2
 	}
-	ud.Value = draw.NewDraw(with, height)
+
+	ud.Value = images.NewImage(with, height)
 	L.SetMetatable(ud, L.GetTypeMetatable("draw"))
 	L.Push(ud)
 	return 1

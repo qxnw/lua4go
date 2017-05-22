@@ -48,10 +48,6 @@ func getModules() (r map[string]map[string]lua.LGFunction) {
 		"encoding": map[string]lua.LGFunction{
 			"convert": moduleEncodingConvert,
 		},
-		"unicode": map[string]lua.LGFunction{
-			"encode": moduleUnicodeEncode,
-			"decode": moduleUnicodeDecode,
-		},
 		"md5": map[string]lua.LGFunction{
 			"encrypt": moduleMd5Encrypt,
 		},

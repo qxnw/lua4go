@@ -6,8 +6,8 @@ import (
 
 	"time"
 
-	"github.com/arsgo/lib4go/script"
 	"github.com/qxnw/lib4go/rpc"
+	"github.com/qxnw/lua4go/script"
 	"github.com/yuin/gopher-lua"
 )
 

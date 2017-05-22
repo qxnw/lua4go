@@ -1,7 +1,7 @@
 package bind
 
 import (
-	"github.com/arsgo/lib4go/encoding"
+	"github.com/qxnw/lib4go/encoding"
 	"github.com/qxnw/lib4go/encoding/html"
 	"github.com/qxnw/lib4go/encoding/url"
 	"github.com/yuin/gopher-lua"
@@ -10,18 +10,8 @@ import (
 func moduleEncodingConvert(ls *lua.LState) int {
 	input := ls.CheckString(1)
 	chaset := ls.CheckString(2)
-	result := encoding.Convert([]byte(input), chaset)
-	return pushValues(ls, result)
-}
-func moduleUnicodeEncode(ls *lua.LState) int {
-	input := ls.CheckString(1)
-	result := encoding.UnicodeEncode(input)
-	return pushValues(ls, result)
-}
-func moduleUnicodeDecode(ls *lua.LState) int {
-	input := ls.CheckString(1)
-	result := encoding.UnicodeDecode(input)
-	return pushValues(ls, result)
+	result, err := encoding.Convert([]byte(input), chaset)
+	return pushValues(ls, result, err)
 }
 
 func moduleURLEncode(ls *lua.LState) int {
