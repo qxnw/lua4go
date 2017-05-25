@@ -78,8 +78,8 @@ func checkMemcached(L *lua.LState) *memcache.MemcacheClient {
 func typeMemcacheGet(L *lua.LState) int {
 	p := checkMemcached(L)
 	key := L.CheckString(2)
-	a := p.Get(key)
-	return pushValues(L, a)
+	a, err := p.Get(key)
+	return pushValues(L, a, err)
 }
 func typeMemcacheAdd(L *lua.LState) int {
 	p := checkMemcached(L)
