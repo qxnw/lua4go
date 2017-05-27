@@ -24,9 +24,13 @@ type IBinder interface {
 
 //LuaEngine 脚本引擎
 type LuaEngine struct {
-	binder IBinder
-	script string
-	state  *lua.LState
+	binder         IBinder
+	script         string
+	state          *lua.LState
+	total          int32
+	failed         int32
+	failedPercent  float32
+	minFailedCount float32
 }
 
 func (e *LuaEngine) printCounter(v int32) {
@@ -40,7 +44,7 @@ func (e *LuaEngine) printCounter(v int32) {
 
 //NewLuaEngine 初始化lua引擎
 func NewLuaEngine(script string, binder IBinder) (engine *LuaEngine, err error) {
-	engine = &LuaEngine{script: script, binder: binder}
+	engine = &LuaEngine{script: script, binder: binder, failedPercent: 0.5, minFailedCount: 10}
 	engine.printCounter(1)
 	engine.state = lua.NewState()
 	err = engine.init(script, binder)
@@ -50,7 +54,6 @@ func NewLuaEngine(script string, binder IBinder) (engine *LuaEngine, err error) 
 		//}
 		return
 	}
-
 	return
 
 }
@@ -87,10 +90,20 @@ func (e *LuaEngine) clearState() {
 	}
 }
 func (e *LuaEngine) runException(context *Context, err error) {
+	atomic.AddInt32(&e.failed, 1)
 	context.Logger.Error(err)
 	e.printCounter(-1)
 	e.state.Close()
 	e.init(e.script, e.binder)
+}
+func (e *LuaEngine) checkError() error {
+	total := float32(atomic.LoadInt32(&e.total))
+	failed := float32(atomic.LoadInt32(&e.failed))
+	value := failed / total
+	if failed >= e.minFailedCount && value >= e.failedPercent {
+		return fmt.Errorf("执行脚本:%s,异常次数太多:%.2f/%.2f次，超过阀值:%.2f(min:%.2f)", e.script, failed, total, e.failedPercent, e.minFailedCount)
+	}
+	return nil
 }
 
 //Call 初始化脚本参数，并执行脚本
@@ -101,8 +114,10 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 	}
 	defer luaRecover(context.Logger)
 	defer e.clearState()
+	if err = e.checkError(); err != nil {
+		return
+	}
 	startTime := time.Now()
-
 	e.state.SetGlobal("__context__", core.New(e.state, context))
 	inputData, err := json2LuaTable(e.state, context.Input, context.Logger)
 	if err != nil {
@@ -110,6 +125,8 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 		return
 	}
 	context.Logger.Infof("----开始执行脚本:%s", e.script)
+
+	atomic.AddInt32(&e.total, 1)
 	values, err := callMain(e.state, inputData, context.Logger)
 	if err != nil {
 		err = fmt.Errorf("脚本执行异常,%+v:%+v", time.Since(startTime), err)
@@ -129,6 +146,7 @@ func (e *LuaEngine) Call(context *Context) (result []string, params map[string]s
 			if strings.HasPrefix(txt, "err:") {
 				err = fmt.Errorf("脚本返回异常(%s)(%+v) %v", e.script, time.Since(startTime), lv)
 				context.Logger.Error(err)
+				atomic.AddInt32(&e.failed, 1)
 				return nil, nil, err
 			}
 			result = append(result, txt)
@@ -177,6 +195,7 @@ func callMain(ls *lua.LState, inputValue lua.LValue, log Logger) (rt []lua.LValu
 			er = fmt.Errorf("%+v,%s", r, string(debug.Stack()))
 		}
 	}()
+
 	ls.Pop(ls.GetTop())
 	er = callMainFunc(ls, inputValue)
 	if er != nil {
