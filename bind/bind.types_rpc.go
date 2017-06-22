@@ -34,61 +34,6 @@ func typeRPCReponseWait(ls *lua.LState) int {
 	}
 	return pushValues(ls, status, result)
 }
-func moduleRPCAsyncDelete(ls *lua.LState) int {
-	rpc, err := moduleRPC(ls)
-	if err != nil {
-		return pushValues(ls, "", 500, err)
-	}
-	service := ls.CheckString(1)
-	input := ls.CheckTable(2)
-	failFast := true
-	if ls.GetTop() > 2 {
-		failFast = ls.CheckBool(3)
-	}
-	d := rpc.AsyncDelete(service, getRPCMap(ls, input), failFast)
-	ud := ls.NewUserData()
-	ud.Value = d
-	ls.SetMetatable(ud, ls.GetTypeMetatable("async_rpc_response"))
-	ls.Push(ud)
-	return 1
-}
-func moduleRPCAsyncInsert(ls *lua.LState) int {
-	rpc, err := moduleRPC(ls)
-	if err != nil {
-		return pushValues(ls, "", 500, err)
-	}
-	service := ls.CheckString(1)
-	input := ls.CheckTable(2)
-	failFast := true
-	if ls.GetTop() > 2 {
-		failFast = ls.CheckBool(3)
-	}
-	d := rpc.AsyncInsert(service, getRPCMap(ls, input), failFast)
-	ud := ls.NewUserData()
-	ud.Value = d
-	ls.SetMetatable(ud, ls.GetTypeMetatable("async_rpc_response"))
-	ls.Push(ud)
-	return 1
-}
-func moduleRPCAsyncQuery(ls *lua.LState) int {
-	rpc, err := moduleRPC(ls)
-	if err != nil {
-		return pushValues(ls, "", 500, err)
-	}
-	service := ls.CheckString(1)
-	input := ls.CheckTable(2)
-	failFast := true
-	if ls.GetTop() > 2 {
-		failFast = ls.CheckBool(3)
-	}
-	d := rpc.AsyncQuery(service, getRPCMap(ls, input), failFast)
-	ud := ls.NewUserData()
-	ud.Value = d
-	ls.SetMetatable(ud, ls.GetTypeMetatable("async_rpc_response"))
-	ls.Push(ud)
-	return 1
-}
-
 func moduleRPCAsyncRequest(ls *lua.LState) int {
 	rpc, err := moduleRPC(ls)
 	if err != nil {
@@ -101,24 +46,6 @@ func moduleRPCAsyncRequest(ls *lua.LState) int {
 		failFast = ls.CheckBool(3)
 	}
 	d := rpc.AsyncRequest(service, getRPCMap(ls, input), failFast)
-	ud := ls.NewUserData()
-	ud.Value = d
-	ls.SetMetatable(ud, ls.GetTypeMetatable("async_rpc_response"))
-	ls.Push(ud)
-	return 1
-}
-func moduleRPCAsyncUpdate(ls *lua.LState) int {
-	rpc, err := moduleRPC(ls)
-	if err != nil {
-		return pushValues(ls, "", 500, err)
-	}
-	service := ls.CheckString(1)
-	input := ls.CheckTable(2)
-	failFast := true
-	if ls.GetTop() > 2 {
-		failFast = ls.CheckBool(3)
-	}
-	d := rpc.AsyncUpdate(service, getRPCMap(ls, input), failFast)
 	ud := ls.NewUserData()
 	ud.Value = d
 	ls.SetMetatable(ud, ls.GetTypeMetatable("async_rpc_response"))

@@ -13,21 +13,8 @@ import (
 
 type rpcInvoker interface {
 	//Request 发送请求
-	Request(service string, input map[string]string, failFast bool) (status int, result string, err error)
-	//Query 发送请求
-	Query(service string, input map[string]string, failFast bool) (status int, result string, err error)
-	//Update 发送请求
-	Update(service string, input map[string]string, failFast bool) (status int, err error)
-	//Insert 发送请求
-	Insert(service string, input map[string]string, failFast bool) (status int, err error)
-	//Delete 发送请求
-	Delete(service string, input map[string]string, failFast bool) (status int, err error)
+	Request(service string, input map[string]string, failFast bool) (status int, result string, param map[string]string, err error)
 	AsyncRequest(service string, input map[string]string, failFast bool) rpc.IRPCResponse
-	AsyncQuery(service string, input map[string]string, failFast bool) rpc.IRPCResponse
-	AsyncDelete(service string, input map[string]string, failFast bool) rpc.IRPCResponse
-
-	AsyncInsert(service string, input map[string]string, failFast bool) rpc.IRPCResponse
-	AsyncUpdate(service string, input map[string]string, failFast bool) rpc.IRPCResponse
 	WaitWithFailFast(callback func(string, int, string, error), timeout time.Duration, rs ...rpc.IRPCResponse) error
 }
 
@@ -52,64 +39,8 @@ func moduleRPCRequest(ls *lua.LState) int {
 	if err != nil {
 		return pushValues(ls, "", 500, err)
 	}
-	s, r, err := rpc.Request(service, getRPCMap(ls, input), failFast)
-	return pushValues(ls, r, s, err)
-}
-func moduleRPCQuery(ls *lua.LState) int {
-	service := ls.CheckString(1)
-	input := ls.CheckTable(2)
-	failFast := false
-	if ls.GetTop() > 2 {
-		failFast = ls.CheckBool(3)
-	}
-	rpc, err := moduleRPC(ls)
-	if err != nil {
-		return pushValues(ls, "", 500, err)
-	}
-	s, r, err := rpc.Query(service, getRPCMap(ls, input), failFast)
-	return pushValues(ls, r, s, err)
-}
-func moduleRPCInsert(ls *lua.LState) int {
-	service := ls.CheckString(1)
-	input := ls.CheckTable(2)
-	failFast := false
-	if ls.GetTop() > 2 {
-		failFast = ls.CheckBool(3)
-	}
-	rpc, err := moduleRPC(ls)
-	if err != nil {
-		return pushValues(ls, 500, err)
-	}
-	s, err := rpc.Insert(service, getRPCMap(ls, input), failFast)
-	return pushValues(ls, s, err)
-}
-func moduleRPCUpdate(ls *lua.LState) int {
-	service := ls.CheckString(1)
-	input := ls.CheckTable(2)
-	failFast := false
-	if ls.GetTop() > 2 {
-		failFast = ls.CheckBool(3)
-	}
-	rpc, err := moduleRPC(ls)
-	if err != nil {
-		return pushValues(ls, 500, err)
-	}
-	s, err := rpc.Update(service, getRPCMap(ls, input), failFast)
-	return pushValues(ls, s, err)
-}
-func moduleRPCDelete(ls *lua.LState) int {
-	service := ls.CheckString(1)
-	input := ls.CheckTable(2)
-	failFast := false
-	if ls.GetTop() > 2 {
-		failFast = ls.CheckBool(3)
-	}
-	rpc, err := moduleRPC(ls)
-	if err != nil {
-		return pushValues(ls, 500, err)
-	}
-	s, err := rpc.Delete(service, getRPCMap(ls, input), failFast)
-	return pushValues(ls, s, err)
+	s, r, p, err := rpc.Request(service, getRPCMap(ls, input), failFast)
+	return pushValues(ls, r, s, p, err)
 }
 func moduleRPCWait(ls *lua.LState) int {
 	callBack := ls.CheckFunction(1)

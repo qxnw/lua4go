@@ -30,15 +30,7 @@ func getModules() (r map[string]map[string]lua.LGFunction) {
 		},
 		"rpc": map[string]lua.LGFunction{
 			"request":       moduleRPCRequest,
-			"query":         moduleRPCQuery,
-			"update":        moduleRPCUpdate,
-			"insert":        moduleRPCInsert,
-			"delete":        moduleRPCDelete,
-			"async_delete":  moduleRPCAsyncDelete,
-			"async_insert":  moduleRPCAsyncInsert,
-			"async_query":   moduleRPCAsyncQuery,
 			"async_request": moduleRPCAsyncRequest,
-			"async_update":  moduleRPCAsyncUpdate,
 			"wait":          moduleRPCWait,
 		},
 		"url": map[string]lua.LGFunction{
