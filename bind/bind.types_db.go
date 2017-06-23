@@ -158,7 +158,7 @@ func typeDBTransRollback(L *lua.LState) int {
 var dbCache cmap.ConcurrentMap
 
 func init() {
-	dbCache = cmap.New()
+	dbCache = cmap.New(2)
 }
 
 func getDBFromCache(conf string) (*db.DB, error) {

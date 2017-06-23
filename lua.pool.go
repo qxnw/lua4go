@@ -26,7 +26,7 @@ type LuaPool struct {
 //NewLuaPool 构建LUA引擎池
 func NewLuaPool(binder IBinder, minSize int, maxSize int, timeout time.Duration) *LuaPool {
 	pool := &LuaPool{binder: binder, minSize: minSize, maxSize: maxSize, Timeout: timeout}
-	pool.cache = cmap.New()
+	pool.cache = cmap.New(32)
 	return pool
 }
 

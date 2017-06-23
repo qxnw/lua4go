@@ -93,8 +93,8 @@ func NewLuaVM(binder IBinder, opts ...Option) *LuaVM {
 		vm.watcher = file.NewDirWatcher(vm.Reload, vm.watchScriptSpan)
 	}
 
-	vm.cache = cmap.New()
-	vm.scripts = cmap.New()
+	vm.cache = cmap.New(32)
+	vm.scripts = cmap.New(32)
 	vm.cache.SetIfAbsentCb(string(vm.version+1), vm.createNewPool)
 	atomic.AddInt32(&vm.version, 1)
 	return vm

@@ -15,7 +15,7 @@ import (
 //local producer=mq.new("mq")  --根据zk配置名称初始化mq
 //producer:send(queue,content,timeout) --发送消息
 
-var mqProducerCache = cmap.New()
+var mqProducerCache = cmap.New(2)
 
 func getMQTypeBinder() *TypeBinder {
 	return &TypeBinder{
@@ -52,7 +52,7 @@ func typeMQProducerType(ls *lua.LState) int {
 var mqCache cmap.ConcurrentMap
 
 func init() {
-	mqCache = cmap.New()
+	mqCache = cmap.New(2)
 }
 
 func getMQFromCache(ls *lua.LState, conf string) (mq.MQProducer, error) {
